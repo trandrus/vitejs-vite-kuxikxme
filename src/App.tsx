@@ -1023,7 +1023,7 @@ export default function WellnessCalculator() {
     }
 
     const fetchMissingFavorites = async () => {
-      console.log('Fetching missing favorites....', {
+      console.log('Fetching missing favorites...', {
         fdcFavoritesCount: favoriteFdcIds.size,
         cacheSize: favoriteFoodCache.size
       });
