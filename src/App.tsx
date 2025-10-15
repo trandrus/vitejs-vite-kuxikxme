@@ -1563,7 +1563,7 @@ export default function WellnessCalculator() {
           <div className="flex items-center gap-3">
             <img src="/toplogo2.png" alt="Logo" className="logo-spin h-8 w-8" />
             <h1 className="text-2xl font-semibold tracking-tight">
-              The WLness System Food Calculator
+              The WLness System 345 Calculator
             </h1>
           </div>
           <div className="flex items-center gap-2 text-sm">
