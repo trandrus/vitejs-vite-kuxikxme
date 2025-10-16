@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase, DEFAULT_USER_ID } from './supabaseClient';
 
-// === Wellness System – Calculator + USDA Search + Food Log (CSV + optional .xlsx) ===
+// === Wellness System – Calculator + USDA Search + Food Log (CSV + optional .xlsx) =========
 // Self-contained. Neutral top stat row; metrics badges tint green when OK, and rose when not OK.
 
 // ===================== Shared helpers =====================
@@ -252,22 +252,27 @@ function Stat({
   containerClass = '',
   tooltip,
   valueColor,
+  secondaryLine,
 }: {
   label: string;
   value: string;
   containerClass?: string;
   tooltip?: string;
   valueColor?: string;
+  secondaryLine?: React.ReactNode;
 }) {
   return (
     <div className={'rounded-xl border p-3 bg-white ' + containerClass}>
-      <div className="text-[11px] uppercase tracking-wide text-slate-500">
+      <div className="text-[9px] uppercase tracking-wide text-slate-500">
         {label}
       </div>
-      <div className={`text-base font-semibold ${valueColor || ''}`}>{value}</div>
+      <div className={`text-base font-semibold ${valueColor || ''}`}>
+        {value}
+      </div>
       {tooltip ? (
         <div className="mt-0.5 text-[10px] text-slate-500">{tooltip}</div>
       ) : null}
+      {secondaryLine}
     </div>
   );
 }
@@ -338,6 +343,7 @@ function FoodCard({
   const [amt, setAmt] = React.useState<string>(
     String(Math.max(0, item.serving))
   );
+  const [amtError, setAmtError] = React.useState<string>('');
   React.useEffect(() => {
     setAmt(String(Math.max(0, safeNum(item.serving))));
   }, [item.serving]);
@@ -404,6 +410,15 @@ function FoodCard({
     const raw = (amt ?? '').trim();
     const num = raw === '' ? 0 : Number(raw);
     const grams = Number.isFinite(num) ? Math.max(0, num) : 0;
+
+    if (grams <= 0) {
+      setAmtError('Amount must be greater than 0');
+    } else if (grams > 10000) {
+      setAmtError('Amount must be 10000g or less');
+    } else {
+      setAmtError('');
+    }
+
     handleAmountChange(grams);
     setAmt(String(Math.max(0, Math.round(grams))));
   };
@@ -441,7 +456,7 @@ function FoodCard({
         <div className={'rounded-xl border p-3 col-span-2 ' + NEUTRAL}>
           <label
             htmlFor={amtId}
-            className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500 cursor-pointer"
+            className="mb-1 block text-[9px] uppercase tracking-wide text-slate-500 cursor-pointer"
           >
             Amount
           </label>
@@ -461,12 +476,23 @@ function FoodCard({
             }}
             onChange={(e) => {
               const v = (e.target as HTMLInputElement).value;
-              if (/^[0-9]*([.][0-9]*)?$/.test(v)) setAmt(v);
+              if (/^[0-9]*([.][0-9]*)?$/.test(v)) {
+                setAmt(v);
+                if (amtError) setAmtError('');
+              }
             }}
             onBlur={commitAmount}
-            className="w-full rounded-lg border border-slate-500 px-2 py-1 text-left text-base font-semibold bg-white/70 focus:border-slate-500 focus:ring-0 outline-none cursor-text"
+            className={`w-full rounded-lg border ${
+              amtError ? 'border-rose-500' : 'border-slate-500'
+            } px-2 py-1 text-left text-base font-semibold bg-white/70 focus:border-slate-500 focus:ring-0 outline-none cursor-text`}
           />
-          <div className="mt-1 text-[10px] text-left text-slate-500">(g)</div>
+          {amtError ? (
+            <div className="mt-1 text-[9px] text-left text-rose-600">
+              {amtError}
+            </div>
+          ) : (
+            <div className="mt-1 text-[10px] text-left text-slate-500">(g)</div>
+          )}
         </div>
 
         <Stat
@@ -505,91 +531,99 @@ function FoodCard({
         {(() => {
           const fdcId = item.fdcId || null;
           const customFoodId = item.customFoodId || null;
-          const isFavorite = fdcId ? favoriteFdcIds.has(fdcId) : (customFoodId ? favoriteCustomFoodIds.has(customFoodId) : false);
+          const isFavorite = fdcId
+            ? favoriteFdcIds.has(fdcId)
+            : customFoodId
+            ? favoriteCustomFoodIds.has(customFoodId)
+            : false;
 
           return (
-        <button
-          onClick={async () => {
-            const normalizedName = item.name.toLowerCase().trim();
-            try {
-              if (isFavorite) {
-                if (fdcId) {
-                  await supabase
-                    .from('favorites')
-                    .delete()
-                    .eq('user_id', DEFAULT_USER_ID)
-                    .eq('fdc_id', fdcId);
-                  setFavoriteFdcIds((prev) => {
-                    const next = new Set(prev);
-                    next.delete(fdcId);
-                    return next;
-                  });
-                } else if (customFoodId) {
-                  await supabase
-                    .from('favorites')
-                    .delete()
-                    .eq('user_id', DEFAULT_USER_ID)
-                    .eq('custom_food_id', customFoodId);
-                  setFavoriteCustomFoodIds((prev) => {
-                    const next = new Set(prev);
-                    next.delete(customFoodId);
-                    return next;
-                  });
-                }
-                setFavorites((prev) => {
-                  const next = new Set(prev);
-                  next.delete(normalizedName);
-                  return next;
-                });
-              } else {
-                if (!fdcId && !customFoodId) {
-                  console.error('Cannot favorite item without fdc_id or custom_food_id');
-                  return;
-                }
-                if (fdcId) {
-                  await supabase
-                    .from('favorites')
-                    .insert({
-                      user_id: DEFAULT_USER_ID,
-                      food_name: normalizedName,
-                      fdc_id: fdcId,
+            <button
+              onClick={async () => {
+                const normalizedName = item.name.toLowerCase().trim();
+                try {
+                  if (isFavorite) {
+                    if (fdcId) {
+                      await supabase
+                        .from('favorites')
+                        .delete()
+                        .eq('user_id', DEFAULT_USER_ID)
+                        .eq('fdc_id', fdcId);
+                      setFavoriteFdcIds((prev) => {
+                        const next = new Set(prev);
+                        next.delete(fdcId);
+                        return next;
+                      });
+                    } else if (customFoodId) {
+                      await supabase
+                        .from('favorites')
+                        .delete()
+                        .eq('user_id', DEFAULT_USER_ID)
+                        .eq('custom_food_id', customFoodId);
+                      setFavoriteCustomFoodIds((prev) => {
+                        const next = new Set(prev);
+                        next.delete(customFoodId);
+                        return next;
+                      });
+                    }
+                    setFavorites((prev) => {
+                      const next = new Set(prev);
+                      next.delete(normalizedName);
+                      return next;
                     });
-                  setFavoriteFdcIds((prev) => new Set([...prev, fdcId]));
-                  if (item._originalFood) {
-                    setFavoriteFoodCache(prev => {
-                      const newMap = new Map(prev);
-                      newMap.set(fdcId, item._originalFood);
-                      return newMap;
-                    });
+                  } else {
+                    if (!fdcId && !customFoodId) {
+                      console.error(
+                        'Cannot favorite item without fdc_id or custom_food_id'
+                      );
+                      return;
+                    }
+                    if (fdcId) {
+                      await supabase.from('favorites').insert({
+                        user_id: DEFAULT_USER_ID,
+                        food_name: normalizedName,
+                        fdc_id: fdcId,
+                      });
+                      setFavoriteFdcIds((prev) => new Set([...prev, fdcId]));
+                      if (item._originalFood) {
+                        setFavoriteFoodCache((prev) => {
+                          const newMap = new Map(prev);
+                          newMap.set(fdcId, item._originalFood);
+                          return newMap;
+                        });
+                      }
+                    } else if (customFoodId) {
+                      await supabase.from('favorites').insert({
+                        user_id: DEFAULT_USER_ID,
+                        food_name: normalizedName,
+                        custom_food_id: customFoodId,
+                      });
+                      setFavoriteCustomFoodIds(
+                        (prev) => new Set([...prev, customFoodId])
+                      );
+                    }
+                    setFavorites((prev) => new Set([...prev, normalizedName]));
                   }
-                } else if (customFoodId) {
-                  await supabase
-                    .from('favorites')
-                    .insert({
-                      user_id: DEFAULT_USER_ID,
-                      food_name: normalizedName,
-                      custom_food_id: customFoodId,
-                    });
-                  setFavoriteCustomFoodIds((prev) => new Set([...prev, customFoodId]));
+                } catch (error) {
+                  console.error('Error toggling favorite:', error);
                 }
-                setFavorites((prev) => new Set([...prev, normalizedName]));
-              }
-            } catch (error) {
-              console.error('Error toggling favorite:', error);
-            }
-          }}
-          className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
-          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-        >
-          <span className={isFavorite ? 'text-yellow-500' : 'text-gray-300'}>
-            ★
-          </span>
-        </button>
+              }}
+              className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
+              title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              <span
+                className={isFavorite ? 'text-yellow-500' : 'text-gray-300'}
+              >
+                ★
+              </span>
+            </button>
           );
         })()}
         <div className="flex flex-wrap gap-2">
           {SELECTED_MICROS.map((m) => {
-            const val = safeNum(item.micros?.[m.key as keyof typeof item.micros]);
+            const val = safeNum(
+              item.micros?.[m.key as keyof typeof item.micros]
+            );
             if (!val) return null;
             return (
               <span
@@ -744,12 +778,12 @@ export default function WellnessCalculator() {
   // ===== Calculator inputs (baseline) =====
   const [units, setUnits] = useState<Units>('us');
   const [sex, setSex] = useState<Sex>('male');
-  const [age, setAge] = useState<number>(30);
-  const [heightFt, setHeightFt] = useState<number>(5);
-  const [heightIn, setHeightIn] = useState<number>(10);
-  const [heightCm, setHeightCm] = useState<number>(178);
-  const [weightLb, setWeightLb] = useState<number>(180);
-  const [weightKg, setWeightKg] = useState<number>(81.6);
+  const [age, setAge] = useState<number>(0);
+  const [heightFt, setHeightFt] = useState<number>(0);
+  const [heightIn, setHeightIn] = useState<number>(0);
+  const [heightCm, setHeightCm] = useState<number>(0);
+  const [weightLb, setWeightLb] = useState<number>(0);
+  const [weightKg, setWeightKg] = useState<number>(0);
   const [activity, setActivity] = useState<number>(1.55);
   const [goal, setGoal] = useState<Goal>('maintain');
 
@@ -781,6 +815,7 @@ export default function WellnessCalculator() {
   const [searchError, setSearchError] = useState('');
   const [showResults, setShowResults] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [customFoodsPage, setCustomFoodsPage] = useState(1);
@@ -791,9 +826,12 @@ export default function WellnessCalculator() {
   const [showCustomFoods, setShowCustomFoods] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showCustomFoodModal, setShowCustomFoodModal] = useState(false);
-  const [showRemoveCustomFoodModal, setShowRemoveCustomFoodModal] = useState(false);
+  const [showRemoveCustomFoodModal, setShowRemoveCustomFoodModal] =
+    useState(false);
   const [customFoodToRemove, setCustomFoodToRemove] = useState<any>(null);
-  const [favoriteFoodCache, setFavoriteFoodCache] = useState<Map<number, any>>(new Map());
+  const [favoriteFoodCache, setFavoriteFoodCache] = useState<Map<number, any>>(
+    new Map()
+  );
   const [cacheVersion, setCacheVersion] = useState(0);
   const [customFoodName, setCustomFoodName] = useState('');
   const [customFoodBrand, setCustomFoodBrand] = useState('');
@@ -801,7 +839,93 @@ export default function WellnessCalculator() {
   const [customFoodCalories, setCustomFoodCalories] = useState('');
   const [customFoodFiber, setCustomFoodFiber] = useState('');
   const [customFoodProtein, setCustomFoodProtein] = useState('');
-  const [selectedEnergy, setSelectedEnergy] = useState<'bmr' | 'tdee' | 'target' | null>(null);
+  const [selectedEnergy, setSelectedEnergy] = useState<
+    'bmr' | 'tdee' | 'target' | null
+  >(null);
+
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+
+  const validateAge = (value: number): string => {
+    if (value <= 0) return 'Age must be greater than 0';
+    if (value > 120) return 'Age must be 120 or less';
+    return '';
+  };
+
+  const validateHeightFt = (value: number): string => {
+    if (value < 0) return 'Height cannot be negative';
+    if (value > 9) return 'Height must be 9 feet or less';
+    return '';
+  };
+
+  const validateHeightIn = (value: number): string => {
+    if (value < 0) return 'Inches cannot be negative';
+    if (value >= 12) return 'Inches must be less than 12';
+    return '';
+  };
+
+  const validateHeightCm = (value: number): string => {
+    if (value <= 0) return 'Height must be greater than 0';
+    if (value > 300) return 'Height must be 300 cm or less';
+    return '';
+  };
+
+  const validateWeightLb = (value: number): string => {
+    if (value <= 0) return 'Weight must be greater than 0';
+    if (value > 1500) return 'Weight must be 1500 lb or less';
+    return '';
+  };
+
+  const validateWeightKg = (value: number): string => {
+    if (value <= 0) return 'Weight must be greater than 0';
+    if (value > 680) return 'Weight must be 680 kg or less';
+    return '';
+  };
+
+  const validateUsdaKey = (value: string): string => {
+    if (!value.trim()) return 'API key is required to search';
+    return '';
+  };
+
+  const validateCustomFoodName = (value: string): string => {
+    if (!value.trim()) return 'Food name is required';
+    if (value.trim().length < 2) return 'Name must be at least 2 characters';
+    return '';
+  };
+
+  const validateCustomFoodAmount = (value: string): string => {
+    const num = parseFloat(value);
+    if (isNaN(num) || num <= 0) return 'Amount must be greater than 0';
+    if (num > 10000) return 'Amount must be 10000g or less';
+    return '';
+  };
+
+  const validateCustomFoodCalories = (value: string): string => {
+    const num = parseFloat(value);
+    if (isNaN(num) || num < 0) return 'Calories cannot be negative';
+    if (num > 10000) return 'Calories must be 10000 or less';
+    return '';
+  };
+
+  const validateCustomFoodNutrient = (value: string, name: string): string => {
+    const num = parseFloat(value);
+    if (isNaN(num) || num < 0) return `${name} cannot be negative`;
+    if (num > 1000) return `${name} must be 1000g or less`;
+    return '';
+  };
+
+  const setValidationError = (field: string, error: string) => {
+    setValidationErrors((prev) => {
+      if (error) {
+        return { ...prev, [field]: error };
+      } else {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      }
+    });
+  };
 
   // Load settings from Supabase on mount
   useEffect(() => {
@@ -826,7 +950,9 @@ export default function WellnessCalculator() {
           setCustomFoodCalories(draft.calories || '');
           setCustomFoodFiber(draft.fiber || '');
           setCustomFoodProtein(draft.protein || '');
-          setSelectedEnergy(data.selected_energy as 'bmr' | 'tdee' | 'target' | null || null);
+          setSelectedEnergy(
+            (data.selected_energy as 'bmr' | 'tdee' | 'target' | null) || null
+          );
         } else {
           const { error: insertError } = await supabase
             .from('user_settings')
@@ -852,7 +978,10 @@ export default function WellnessCalculator() {
       try {
         const { error } = await supabase
           .from('user_settings')
-          .update({ fdc_api_key: fdcApiKey, updated_at: new Date().toISOString() })
+          .update({
+            fdc_api_key: fdcApiKey,
+            updated_at: new Date().toISOString(),
+          })
           .eq('user_id', DEFAULT_USER_ID);
 
         if (error) throw error;
@@ -873,7 +1002,10 @@ export default function WellnessCalculator() {
       try {
         const { error } = await supabase
           .from('user_settings')
-          .update({ selected_energy: selectedEnergy, updated_at: new Date().toISOString() })
+          .update({
+            selected_energy: selectedEnergy,
+            updated_at: new Date().toISOString(),
+          })
           .eq('user_id', DEFAULT_USER_ID);
 
         if (error) throw error;
@@ -895,7 +1027,11 @@ export default function WellnessCalculator() {
       try {
         const { error } = await supabase
           .from('user_settings')
-          .update({ search_results: results, total_results: totalResults, updated_at: new Date().toISOString() })
+          .update({
+            search_results: results,
+            total_results: totalResults,
+            updated_at: new Date().toISOString(),
+          })
           .eq('user_id', DEFAULT_USER_ID);
 
         if (error) throw error;
@@ -925,7 +1061,7 @@ export default function WellnessCalculator() {
           .from('user_settings')
           .update({
             custom_food_draft: draft,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq('user_id', DEFAULT_USER_ID);
 
@@ -937,7 +1073,14 @@ export default function WellnessCalculator() {
 
     const timeoutId = setTimeout(saveDraft, 500);
     return () => clearTimeout(timeoutId);
-  }, [customFoodName, customFoodBrand, customFoodAmount, customFoodCalories, customFoodFiber, customFoodProtein]);
+  }, [
+    customFoodName,
+    customFoodBrand,
+    customFoodAmount,
+    customFoodCalories,
+    customFoodFiber,
+    customFoodProtein,
+  ]);
 
   // ===== Food log & CSV (state + sticky fallback) =====
   const [log, setLog] = useState<LogItem[]>([]);
@@ -945,7 +1088,9 @@ export default function WellnessCalculator() {
   const [showCsv, setShowCsv] = useState<boolean>(true);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [favoriteFdcIds, setFavoriteFdcIds] = useState<Set<number>>(new Set());
-  const [favoriteCustomFoodIds, setFavoriteCustomFoodIds] = useState<Set<string>>(new Set());
+  const [favoriteCustomFoodIds, setFavoriteCustomFoodIds] = useState<
+    Set<string>
+  >(new Set());
   const itemsPerPage = 10;
   const totalPages = Math.ceil(totalResults / itemsPerPage);
   const customFoodsTotalPages = Math.ceil(customFoods.length / itemsPerPage);
@@ -953,14 +1098,23 @@ export default function WellnessCalculator() {
     (customFoodsPage - 1) * itemsPerPage,
     customFoodsPage * itemsPerPage
   );
-  const allFavorites = [...Array.from(favoriteCustomFoodIds).map(id => ({ type: 'custom' as const, id })), ...Array.from(favoriteFdcIds).map(id => ({ type: 'fdc' as const, id }))];
+  const allFavorites = [
+    ...Array.from(favoriteCustomFoodIds).map((id) => ({
+      type: 'custom' as const,
+      id,
+    })),
+    ...Array.from(favoriteFdcIds).map((id) => ({ type: 'fdc' as const, id })),
+  ];
   const favoritesTotalPages = Math.ceil(allFavorites.length / itemsPerPage);
   const paginatedFavorites = allFavorites.slice(
     (favoritesPage - 1) * itemsPerPage,
     favoritesPage * itemsPerPage
   );
   const paginatedResults = results.slice(0, itemsPerPage);
-  const searchResultsPages = Math.max(totalPages, Math.ceil(results.length / itemsPerPage));
+  const searchResultsPages = Math.max(
+    totalPages,
+    Math.ceil(results.length / itemsPerPage)
+  );
 
   // Load custom foods from Supabase
   useEffect(() => {
@@ -1025,13 +1179,15 @@ export default function WellnessCalculator() {
     const fetchMissingFavorites = async () => {
       console.log('Fetching missing favorites...', {
         fdcFavoritesCount: favoriteFdcIds.size,
-        cacheSize: favoriteFoodCache.size
+        cacheSize: favoriteFoodCache.size,
       });
 
       for (const fdcId of favoriteFdcIds) {
         console.log('Checking favorite fdcId:', fdcId);
 
-        const inResults = results.find(r => r?.fdcId === fdcId || r?.FdcId === fdcId);
+        const inResults = results.find(
+          (r) => r?.fdcId === fdcId || r?.FdcId === fdcId
+        );
         if (inResults) {
           console.log('Found in results:', fdcId);
           continue;
@@ -1048,7 +1204,14 @@ export default function WellnessCalculator() {
     };
 
     fetchMissingFavorites();
-  }, [showFavoritesOnly, favorites, favoriteFdcIds, customFoods, results, fdcApiKey]);
+  }, [
+    showFavoritesOnly,
+    favorites,
+    favoriteFdcIds,
+    customFoods,
+    results,
+    fdcApiKey,
+  ]);
 
   // Load log from Supabase on mount
   useEffect(() => {
@@ -1102,28 +1265,23 @@ export default function WellnessCalculator() {
   // Save log to Supabase when it changes
   useEffect(() => {
     const saveLog = async () => {
-      if (log.length === 0) return;
-
       try {
-        await supabase
-          .from('food_log')
-          .delete()
-          .eq('user_id', DEFAULT_USER_ID);
+        await supabase.from('food_log').delete().eq('user_id', DEFAULT_USER_ID);
 
-        const items = log.map((item) => ({
-          user_id: DEFAULT_USER_ID,
-          name: item.name,
-          amount: item.serving,
-          base_per_g: item._basePerG,
-          fdc_id: item.fdcId || null,
-          custom_food_id: item.customFoodId || null,
-        }));
+        if (log.length > 0) {
+          const items = log.map((item) => ({
+            user_id: DEFAULT_USER_ID,
+            name: item.name,
+            amount: item.serving,
+            base_per_g: item._basePerG,
+            fdc_id: item.fdcId || null,
+            custom_food_id: item.customFoodId || null,
+          }));
 
-        const { error } = await supabase
-          .from('food_log')
-          .insert(items);
+          const { error } = await supabase.from('food_log').insert(items);
 
-        if (error) throw error;
+          if (error) throw error;
+        }
       } catch (error) {
         console.error('Error saving food log:', error);
       }
@@ -1212,6 +1370,7 @@ export default function WellnessCalculator() {
     setSearchError('');
     setShowCustomFoods(false);
     setShowFavoritesOnly(false);
+    setIsDemoMode(true);
   };
 
   async function fetchFoodByFdcId(fdcId: number, retryCount = 0) {
@@ -1235,24 +1394,24 @@ export default function WellnessCalculator() {
       if (!res.ok) {
         console.error('Failed to fetch food:', res.status, fdcId);
         if (retryCount < 2) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
           return fetchFoodByFdcId(fdcId, retryCount + 1);
         }
         return null;
       }
       const food = await res.json();
       console.log('Successfully fetched food:', fdcId, food);
-      setFavoriteFoodCache(prev => {
+      setFavoriteFoodCache((prev) => {
         const newMap = new Map(prev);
         newMap.set(fdcId, food);
         return newMap;
       });
-      setCacheVersion(prev => prev + 1);
+      setCacheVersion((prev) => prev + 1);
       return food;
     } catch (e) {
       console.error('Error fetching food by FDC ID:', e);
       if (retryCount < 2 && e instanceof Error && e.name !== 'AbortError') {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         return fetchFoodByFdcId(fdcId, retryCount + 1);
       }
       return null;
@@ -1261,6 +1420,11 @@ export default function WellnessCalculator() {
 
   async function searchFoods(pageNumber = 1) {
     setSearchError('');
+    const keyError = validateUsdaKey(fdcApiKey);
+    if (keyError) {
+      setValidationError('usdaKey', keyError);
+      return;
+    }
     setIsSearching(true);
     try {
       if (!fdcApiKey)
@@ -1279,13 +1443,21 @@ export default function WellnessCalculator() {
         throw new Error('403 from USDA. Check your key, or click demo.');
       if (!res.ok) throw new Error(`Search failed (${res.status}).`);
       const data = await res.json();
-      console.log('API Response:', { totalHits: data?.totalHits, foodsCount: data?.foods?.length });
+      console.log('API Response:', {
+        totalHits: data?.totalHits,
+        foodsCount: data?.foods?.length,
+      });
       if (data?.foods?.length > 0) {
         console.log('Sample food object keys:', Object.keys(data.foods[0]));
-        console.log('Sample food fdcId check:', data.foods[0].fdcId, data.foods[0].FdcId);
+        console.log(
+          'Sample food fdcId check:',
+          data.foods[0].fdcId,
+          data.foods[0].FdcId
+        );
       }
       const foods = Array.isArray(data?.foods) ? data.foods : [];
-      const newTotalResults = data?.totalHits || (foods.length > itemsPerPage ? foods.length : 0);
+      const newTotalResults =
+        data?.totalHits || (foods.length > itemsPerPage ? foods.length : 0);
 
       setResults(foods);
       setTotalResults(newTotalResults);
@@ -1293,6 +1465,7 @@ export default function WellnessCalculator() {
       setShowResults(true);
       setShowCustomFoods(false);
       setShowFavoritesOnly(false);
+      setIsDemoMode(false);
     } catch (e: any) {
       setSearchError(e?.message || 'Search failed');
     } finally {
@@ -1319,7 +1492,9 @@ export default function WellnessCalculator() {
     };
     const item: LogItem = ensureBasePerG({
       id: `${food?.fdcId ?? Math.random()}-${Date.now()}`,
-      name: foodName || tidyText(food?.description || food?.lowercaseDescription || 'Food'),
+      name:
+        foodName ||
+        tidyText(food?.description || food?.lowercaseDescription || 'Food'),
       brand:
         tidyText(food?.brandOwner || food?.brandName || food?.dataType || '') ||
         undefined,
@@ -1342,10 +1517,12 @@ export default function WellnessCalculator() {
   }
 
   function addFood(food: any) {
-    const item = food._basePerG ? ensureBasePerG({
-      ...food,
-      id: `${food.id}-${Date.now()}`,
-    }) : parseFood(food);
+    const item = food._basePerG
+      ? ensureBasePerG({
+          ...food,
+          id: `${food.id}-${Date.now()}`,
+        })
+      : parseFood(food);
     setLog((prev) => [item, ...prev]);
     // After adding, jump to first food in the list and focus its Amount box
     try {
@@ -1374,6 +1551,30 @@ export default function WellnessCalculator() {
   }
 
   async function handleCustomFoodSubmit() {
+    const nameError = validateCustomFoodName(customFoodName);
+    const amountError = validateCustomFoodAmount(customFoodAmount);
+    const caloriesError = validateCustomFoodCalories(customFoodCalories);
+    const fiberError = validateCustomFoodNutrient(customFoodFiber, 'Fiber');
+    const proteinError = validateCustomFoodNutrient(
+      customFoodProtein,
+      'Protein'
+    );
+
+    if (
+      nameError ||
+      amountError ||
+      caloriesError ||
+      fiberError ||
+      proteinError
+    ) {
+      setValidationError('customFoodName', nameError);
+      setValidationError('customFoodAmount', amountError);
+      setValidationError('customFoodCalories', caloriesError);
+      setValidationError('customFoodFiber', fiberError);
+      setValidationError('customFoodProtein', proteinError);
+      return;
+    }
+
     const name = customFoodName.trim();
     const brand = customFoodBrand.trim();
     const amount = safeNum(customFoodAmount, 100);
@@ -1381,23 +1582,16 @@ export default function WellnessCalculator() {
     const fiber = safeNum(customFoodFiber, 0);
     const protein = safeNum(customFoodProtein, 0);
 
-    if (!name) {
-      alert('Please enter a food name');
-      return;
-    }
-
     try {
-      const { error } = await supabase
-        .from('custom_foods')
-        .insert({
-          user_id: DEFAULT_USER_ID,
-          name,
-          brand,
-          amount,
-          calories,
-          fiber,
-          protein,
-        });
+      const { error } = await supabase.from('custom_foods').insert({
+        user_id: DEFAULT_USER_ID,
+        name,
+        brand,
+        amount,
+        calories,
+        fiber,
+        protein,
+      });
 
       if (error) throw error;
 
@@ -1408,12 +1602,17 @@ export default function WellnessCalculator() {
       setCustomFoodCalories('');
       setCustomFoodFiber('');
       setCustomFoodProtein('');
+      setValidationError('customFoodName', '');
+      setValidationError('customFoodAmount', '');
+      setValidationError('customFoodCalories', '');
+      setValidationError('customFoodFiber', '');
+      setValidationError('customFoodProtein', '');
 
       await supabase
         .from('user_settings')
         .update({
           custom_food_draft: {},
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('user_id', DEFAULT_USER_ID);
 
@@ -1438,13 +1637,18 @@ export default function WellnessCalculator() {
     setCustomFoodCalories('');
     setCustomFoodFiber('');
     setCustomFoodProtein('');
+    setValidationError('customFoodName', '');
+    setValidationError('customFoodAmount', '');
+    setValidationError('customFoodCalories', '');
+    setValidationError('customFoodFiber', '');
+    setValidationError('customFoodProtein', '');
 
     try {
       await supabase
         .from('user_settings')
         .update({
           custom_food_draft: {},
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('user_id', DEFAULT_USER_ID);
     } catch (error) {
@@ -1563,7 +1767,7 @@ export default function WellnessCalculator() {
           <div className="flex items-center gap-3">
             <img src="/toplogo2.png" alt="Logo" className="logo-spin h-8 w-8" />
             <h1 className="text-2xl font-semibold tracking-tight">
-              The WLness System 345 Calculator
+              The WLness System Food Calculator - beta
             </h1>
           </div>
           <div className="flex items-center gap-2 text-sm">
@@ -1572,7 +1776,9 @@ export default function WellnessCalculator() {
               <button
                 className={
                   'px-3 py-1 ' +
-                  (units === 'us' ? 'bg-slate-900 text-white' : 'bg-white text-black')
+                  (units === 'us'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-black')
                 }
                 onClick={() => setUnits('us')}
               >
@@ -1581,7 +1787,9 @@ export default function WellnessCalculator() {
               <button
                 className={
                   'px-3 py-1 ' +
-                  (units === 'metric' ? 'bg-slate-900 text-white' : 'bg-white text-black')
+                  (units === 'metric'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-black')
                 }
                 onClick={() => setUnits('metric')}
               >
@@ -1601,7 +1809,7 @@ export default function WellnessCalculator() {
                   htmlFor="sex"
                   className="mb-1 block text-xs uppercase tracking-wide text-slate-500"
                 >
-                  Sex
+                  Physiological Sex
                 </label>
                 <select
                   id="sex"
@@ -1623,10 +1831,24 @@ export default function WellnessCalculator() {
                 <input
                   id="age"
                   type="number"
-                  value={age}
-                  onChange={(e) => setAge(parseInt(e.target.value || '0'))}
-                  className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                  value={age === 0 ? '' : age}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value || '0');
+                    setAge(val);
+                    setValidationError('age', validateAge(val));
+                  }}
+                  className={`w-full rounded-xl border ${
+                    validationErrors.age
+                      ? 'border-rose-500'
+                      : 'border-slate-400'
+                  } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
+                  placeholder="0"
                 />
+                {validationErrors.age && (
+                  <p className="mt-1 text-xs text-rose-600">
+                    {validationErrors.age}
+                  </p>
+                )}
               </div>
 
               {units === 'us' ? (
@@ -1641,12 +1863,24 @@ export default function WellnessCalculator() {
                     <input
                       id="heightFt"
                       type="number"
-                      value={heightFt}
-                      onChange={(e) =>
-                        setHeightFt(parseFloat(e.target.value || '0'))
-                      }
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      value={heightFt === 0 ? '' : heightFt}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value || '0');
+                        setHeightFt(val);
+                        setValidationError('heightFt', validateHeightFt(val));
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.heightFt
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
+                      placeholder="0"
                     />
+                    {validationErrors.heightFt && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.heightFt}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label
@@ -1658,12 +1892,24 @@ export default function WellnessCalculator() {
                     <input
                       id="heightIn"
                       type="number"
-                      value={heightIn}
-                      onChange={(e) =>
-                        setHeightIn(parseFloat(e.target.value || '0'))
-                      }
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      value={heightIn === 0 ? '' : heightIn}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value || '0');
+                        setHeightIn(val);
+                        setValidationError('heightIn', validateHeightIn(val));
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.heightIn
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
+                      placeholder="0"
                     />
+                    {validationErrors.heightIn && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.heightIn}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label
@@ -1675,12 +1921,24 @@ export default function WellnessCalculator() {
                     <input
                       id="weightLb"
                       type="number"
-                      value={weightLb}
-                      onChange={(e) =>
-                        setWeightLb(parseFloat(e.target.value || '0'))
-                      }
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      value={weightLb === 0 ? '' : weightLb}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value || '0');
+                        setWeightLb(val);
+                        setValidationError('weightLb', validateWeightLb(val));
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.weightLb
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
+                      placeholder="0"
                     />
+                    {validationErrors.weightLb && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.weightLb}
+                      </p>
+                    )}
                   </div>
                 </>
               ) : (
@@ -1695,12 +1953,24 @@ export default function WellnessCalculator() {
                     <input
                       id="heightCm"
                       type="number"
-                      value={heightCm}
-                      onChange={(e) =>
-                        setHeightCm(parseFloat(e.target.value || '0'))
-                      }
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      value={heightCm === 0 ? '' : heightCm}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value || '0');
+                        setHeightCm(val);
+                        setValidationError('heightCm', validateHeightCm(val));
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.heightCm
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
+                      placeholder="0"
                     />
+                    {validationErrors.heightCm && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.heightCm}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label
@@ -1712,12 +1982,24 @@ export default function WellnessCalculator() {
                     <input
                       id="weightKg"
                       type="number"
-                      value={weightKg}
-                      onChange={(e) =>
-                        setWeightKg(parseFloat(e.target.value || '0'))
-                      }
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      value={weightKg === 0 ? '' : weightKg}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value || '0');
+                        setWeightKg(val);
+                        setValidationError('weightKg', validateWeightKg(val));
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.weightKg
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
+                      placeholder="0"
                     />
+                    {validationErrors.weightKg && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.weightKg}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -1768,7 +2050,9 @@ export default function WellnessCalculator() {
               <h3 className="text-base font-medium mb-2">Energy</h3>
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <button
-                  onClick={() => setSelectedEnergy(selectedEnergy === 'bmr' ? null : 'bmr')}
+                  onClick={() =>
+                    setSelectedEnergy(selectedEnergy === 'bmr' ? null : 'bmr')
+                  }
                   className={`rounded-lg border p-2 transition-all ${
                     selectedEnergy === 'bmr'
                       ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
@@ -1778,7 +2062,9 @@ export default function WellnessCalculator() {
                   <Stat label="BMR" value={`${round(bmr, 0)} kcal`} />
                 </button>
                 <button
-                  onClick={() => setSelectedEnergy(selectedEnergy === 'tdee' ? null : 'tdee')}
+                  onClick={() =>
+                    setSelectedEnergy(selectedEnergy === 'tdee' ? null : 'tdee')
+                  }
                   className={`rounded-lg border p-2 transition-all ${
                     selectedEnergy === 'tdee'
                       ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
@@ -1788,7 +2074,11 @@ export default function WellnessCalculator() {
                   <Stat label="TDEE" value={`${round(tdee, 0)} kcal`} />
                 </button>
                 <button
-                  onClick={() => setSelectedEnergy(selectedEnergy === 'target' ? null : 'target')}
+                  onClick={() =>
+                    setSelectedEnergy(
+                      selectedEnergy === 'target' ? null : 'target'
+                    )
+                  }
                   className={`rounded-lg border p-2 transition-all ${
                     selectedEnergy === 'target'
                       ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
@@ -1809,7 +2099,10 @@ export default function WellnessCalculator() {
 
           {/* ===== Food Search ===== */}
           <div className="md:col-span-7 md:col-start-6 flex flex-col w-full min-w-0">
-            <section className="rounded-2xl border bg-white p-4 shadow-sm w-full min-w-0">
+            <section
+              id="food-search"
+              className="rounded-2xl border bg-white p-4 shadow-sm w-full min-w-0"
+            >
               <h2 className="text-lg font-medium mb-2">Food Search</h2>
               <p className="mb-3 text-xs text-slate-500">
                 Get a free USDA key:{' '}
@@ -1835,9 +2128,23 @@ export default function WellnessCalculator() {
                     type="password"
                     placeholder="USDA API Key"
                     value={fdcApiKey}
-                    onChange={(e) => setFdcApiKey(e.target.value)}
-                    className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                    onChange={(e) => {
+                      setFdcApiKey(e.target.value);
+                      if (validationErrors.usdaKey) {
+                        setValidationError('usdaKey', '');
+                      }
+                    }}
+                    className={`w-full rounded-xl border ${
+                      validationErrors.usdaKey
+                        ? 'border-rose-500'
+                        : 'border-slate-400'
+                    } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                   />
+                  {validationErrors.usdaKey && (
+                    <p className="mt-1 text-xs text-rose-600">
+                      {validationErrors.usdaKey}
+                    </p>
+                  )}
                 </div>
                 <div className="sm:col-span-2">
                   <label
@@ -1869,6 +2176,10 @@ export default function WellnessCalculator() {
                   onClick={() => {
                     setResults([]);
                     setQuery('');
+                    setShowResults(false);
+                    setShowCustomFoods(false);
+                    setShowFavoritesOnly(false);
+                    setIsDemoMode(false);
                   }}
                   className="rounded-xl bg-slate-900 px-3 py-1.5 text-white hover:bg-slate-800 focus:outline-none focus:ring-0"
                 >
@@ -1910,7 +2221,9 @@ export default function WellnessCalculator() {
               {showCustomFoods && (
                 <div className="mt-4" id="custom-foods-section">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-slate-700">Custom Foods</h3>
+                    <h3 className="text-sm font-medium text-slate-700">
+                      Custom Foods
+                    </h3>
                     <button
                       onClick={() => setShowCustomFoodModal(true)}
                       className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800 focus:outline-none focus:ring-0"
@@ -1920,127 +2233,177 @@ export default function WellnessCalculator() {
                   </div>
                   <div className="space-y-2 overflow-hidden">
                     {customFoods.length === 0 ? (
-                      <p className="text-sm text-slate-500">No custom foods yet.</p>
+                      <p className="text-sm text-slate-500">
+                        No custom foods yet.
+                      </p>
                     ) : (
                       paginatedCustomFoods.map((cf) => {
-                      const caloriesFromProtein = cf.protein * 4;
-                      const remainingCalories = Math.max(0, cf.calories - caloriesFromProtein);
-                      const derivedCarbs = remainingCalories / 4;
+                        const caloriesFromProtein = cf.protein * 4;
+                        const remainingCalories = Math.max(
+                          0,
+                          cf.calories - caloriesFromProtein
+                        );
+                        const derivedCarbs = remainingCalories / 4;
 
-                      const basePerG = {
-                        energy: cf.calories / cf.amount,
-                        protein: cf.protein / cf.amount,
-                        fat: 0,
-                        carbs: derivedCarbs / cf.amount,
-                        micros: { fiber: cf.fiber / cf.amount } as Record<string, number>,
-                      };
-                      const item = {
-                        id: `custom-${cf.id}`,
-                        name: cf.name,
-                        brand: cf.brand || 'Custom',
-                        serving: cf.amount,
-                        energy: cf.calories,
-                        protein: cf.protein,
-                        fat: 0,
-                        carbs: derivedCarbs,
-                        micros: { fiber: cf.fiber },
-                        _basePerG: basePerG,
-                        customFoodId: cf.id,
-                      };
-                      const VFF = ff(cf.calories, cf.fiber);
-                      const VPF = pf(cf.calories, cf.protein);
-                      const VWF = wf(VFF, VPF);
-                      const VEF = ef(cf.calories, cf.amount);
+                        const basePerG = {
+                          energy: cf.calories / cf.amount,
+                          protein: cf.protein / cf.amount,
+                          fat: 0,
+                          carbs: derivedCarbs / cf.amount,
+                          micros: { fiber: cf.fiber / cf.amount } as Record<
+                            string,
+                            number
+                          >,
+                        };
+                        const item = {
+                          id: `custom-${cf.id}`,
+                          name: cf.name,
+                          brand: cf.brand || 'Custom',
+                          serving: cf.amount,
+                          energy: cf.calories,
+                          protein: cf.protein,
+                          fat: 0,
+                          carbs: derivedCarbs,
+                          micros: { fiber: cf.fiber },
+                          _basePerG: basePerG,
+                          customFoodId: cf.id,
+                        };
+                        const VFF = ff(cf.calories, cf.fiber);
+                        const VPF = pf(cf.calories, cf.protein);
+                        const VWF = wf(VFF, VPF);
+                        const VEF = ef(cf.calories, cf.amount);
 
-                      return (
-                        <div
-                          key={cf.id}
-                          className="flex items-center gap-3 rounded-xl border p-3"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
-                              {cf.name}
-                            </div>
-                            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
-                              {cf.brand || 'Custom'}
-                            </div>
-                            <div className="mt-1 text-xs text-slate-600">
-                              {cf.amount} g → {round(cf.calories, 0)} kcal • P{' '}
-                              {round(cf.protein, 1)} • Fiber {round(cf.fiber, 1)}
-                            </div>
-                            <div className="mt-1 flex items-center gap-1">
-                              <BadgeHalo label="FF" value={VFF} threshold={50} compact />
-                              <BadgeHalo label="PF" value={VPF} threshold={30} compact />
-                              <BadgeHalo label="WF" value={VWF} threshold={80} compact />
-                              <BadgeHalo label="EF" value={VEF} threshold={1} compact />
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    const normalizedName = cf.name.toLowerCase();
-                                    const customFoodId = cf.id;
-                                    const isFavorite = favoriteCustomFoodIds.has(customFoodId);
+                        return (
+                          <div
+                            key={cf.id}
+                            className="flex items-center gap-3 rounded-xl border p-3"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
+                                {cf.name}
+                              </div>
+                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
+                                {cf.brand || 'Custom'}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-600">
+                                {cf.amount} g → {round(cf.calories, 0)} kcal • P{' '}
+                                {round(cf.protein, 1)} • Fiber{' '}
+                                {round(cf.fiber, 1)}
+                              </div>
+                              <div className="mt-1 flex items-center gap-1">
+                                <BadgeHalo
+                                  label="FF"
+                                  value={VFF}
+                                  threshold={50}
+                                  compact
+                                />
+                                <BadgeHalo
+                                  label="PF"
+                                  value={VPF}
+                                  threshold={30}
+                                  compact
+                                />
+                                <BadgeHalo
+                                  label="WF"
+                                  value={VWF}
+                                  threshold={80}
+                                  compact
+                                />
+                                <BadgeHalo
+                                  label="EF"
+                                  value={VEF}
+                                  threshold={1}
+                                  compact
+                                />
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const normalizedName =
+                                        cf.name.toLowerCase();
+                                      const customFoodId = cf.id;
+                                      const isFavorite =
+                                        favoriteCustomFoodIds.has(customFoodId);
 
-                                    if (isFavorite) {
-                                      await supabase
-                                        .from('favorites')
-                                        .delete()
-                                        .eq('user_id', DEFAULT_USER_ID)
-                                        .eq('custom_food_id', customFoodId);
-                                      setFavorites((prev) => {
-                                        const next = new Set(prev);
-                                        next.delete(normalizedName);
-                                        return next;
-                                      });
-                                      setFavoriteCustomFoodIds((prev) => {
-                                        const next = new Set(prev);
-                                        next.delete(customFoodId);
-                                        return next;
-                                      });
-                                    } else {
-                                      await supabase
-                                        .from('favorites')
-                                        .insert({
-                                          user_id: DEFAULT_USER_ID,
-                                          food_name: normalizedName,
-                                          custom_food_id: customFoodId,
+                                      if (isFavorite) {
+                                        await supabase
+                                          .from('favorites')
+                                          .delete()
+                                          .eq('user_id', DEFAULT_USER_ID)
+                                          .eq('custom_food_id', customFoodId);
+                                        setFavorites((prev) => {
+                                          const next = new Set(prev);
+                                          next.delete(normalizedName);
+                                          return next;
                                         });
-                                      setFavorites((prev) => new Set([...prev, normalizedName]));
-                                      setFavoriteCustomFoodIds((prev) => new Set([...prev, customFoodId]));
+                                        setFavoriteCustomFoodIds((prev) => {
+                                          const next = new Set(prev);
+                                          next.delete(customFoodId);
+                                          return next;
+                                        });
+                                      } else {
+                                        await supabase
+                                          .from('favorites')
+                                          .insert({
+                                            user_id: DEFAULT_USER_ID,
+                                            food_name: normalizedName,
+                                            custom_food_id: customFoodId,
+                                          });
+                                        setFavorites(
+                                          (prev) =>
+                                            new Set([...prev, normalizedName])
+                                        );
+                                        setFavoriteCustomFoodIds(
+                                          (prev) =>
+                                            new Set([...prev, customFoodId])
+                                        );
+                                      }
+                                    } catch (error) {
+                                      console.error(
+                                        'Error toggling favorite:',
+                                        error
+                                      );
                                     }
-                                  } catch (error) {
-                                    console.error('Error toggling favorite:', error);
+                                  }}
+                                  className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
+                                  title={
+                                    favoriteCustomFoodIds.has(cf.id)
+                                      ? 'Remove from favorites'
+                                      : 'Add to favorites'
                                   }
-                                }}
-                                className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
-                                title={favoriteCustomFoodIds.has(cf.id) ? 'Remove from favorites' : 'Add to favorites'}
+                                >
+                                  <span
+                                    className={
+                                      favoriteCustomFoodIds.has(cf.id)
+                                        ? 'text-yellow-500'
+                                        : 'text-gray-300'
+                                    }
+                                  >
+                                    ★
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => addFood(item)}
+                                className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
                               >
-                                <span className={favoriteCustomFoodIds.has(cf.id) ? 'text-yellow-500' : 'text-gray-300'}>
-                                  ★
-                                </span>
+                                Add
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setCustomFoodToRemove(cf);
+                                  setShowRemoveCustomFoodModal(true);
+                                }}
+                                className="text-xs text-slate-500 transition-colors hover:text-rose-600 cursor-pointer bg-transparent border-0 p-0"
+                              >
+                                Remove
                               </button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => addFood(item)}
-                              className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
-                            >
-                              Add
-                            </button>
-                            <button
-                              onClick={() => {
-                                setCustomFoodToRemove(cf);
-                                setShowRemoveCustomFoodModal(true);
-                              }}
-                              className="text-xs text-slate-500 transition-colors hover:text-rose-600 cursor-pointer bg-transparent border-0 p-0"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })
+                    )}
                   </div>
                   {customFoodsTotalPages > 1 && (
                     <div className="mt-3 flex justify-end items-center gap-2">
@@ -2086,189 +2449,283 @@ export default function WellnessCalculator() {
 
               {/* Favorites Section */}
               {showFavoritesOnly && (
-                <div className="mt-4" id="favorites-section" key={`favorites-${cacheVersion}`}>
-                  <h3 className="text-sm font-medium text-slate-700 mb-2">Favorites</h3>
+                <div
+                  className="mt-4"
+                  id="favorites-section"
+                  key={`favorites-${cacheVersion}`}
+                >
+                  <h3 className="text-sm font-medium text-slate-700 mb-2">
+                    Favorites
+                  </h3>
                   <div className="space-y-2 overflow-hidden">
-                    {(favoriteFdcIds.size === 0 && favoriteCustomFoodIds.size === 0) ? (
-                      <p className="text-sm text-slate-500">No favorites yet. Star foods to add them here.</p>
+                    {favoriteFdcIds.size === 0 &&
+                    favoriteCustomFoodIds.size === 0 ? (
+                      <p className="text-sm text-slate-500">
+                        No favorites yet. Star foods to add them here.
+                      </p>
                     ) : (
-                    <>
-                      {paginatedFavorites.map((favorite) => {
-                      if (favorite.type === 'custom') {
-                      const customFoodId = favorite.id;
-                      const customFood = customFoods.find(cf => cf.id === customFoodId);
+                      <>
+                        {paginatedFavorites.map((favorite) => {
+                          if (favorite.type === 'custom') {
+                            const customFoodId = favorite.id;
+                            const customFood = customFoods.find(
+                              (cf) => cf.id === customFoodId
+                            );
 
-                      if (customFood) {
-                        const caloriesFromProtein = customFood.protein * 4;
-                        const remainingCalories = Math.max(0, customFood.calories - caloriesFromProtein);
-                        const derivedCarbs = remainingCalories / 4;
-                        const basePerG = {
-                          energy: customFood.calories / customFood.amount,
-                          protein: customFood.protein / customFood.amount,
-                          fat: 0,
-                          carbs: derivedCarbs / customFood.amount,
-                          micros: { fiber: customFood.fiber / customFood.amount } as Record<string, number>,
-                        };
-                        const item = {
-                          id: `custom-${customFood.id}`,
-                          name: customFood.name,
-                          brand: customFood.brand || 'Custom',
-                          serving: customFood.amount,
-                          energy: customFood.calories,
-                          protein: customFood.protein,
-                          fat: 0,
-                          carbs: derivedCarbs,
-                          micros: { fiber: customFood.fiber },
-                          _basePerG: basePerG,
-                          customFoodId: customFood.id,
-                        };
-                        const VFF = ff(customFood.calories, customFood.fiber);
-                        const VPF = pf(customFood.calories, customFood.protein);
-                        const VWF = wf(VFF, VPF);
-                        const VEF = ef(customFood.calories, customFood.amount);
+                            if (customFood) {
+                              const caloriesFromProtein =
+                                customFood.protein * 4;
+                              const remainingCalories = Math.max(
+                                0,
+                                customFood.calories - caloriesFromProtein
+                              );
+                              const derivedCarbs = remainingCalories / 4;
+                              const basePerG = {
+                                energy: customFood.calories / customFood.amount,
+                                protein: customFood.protein / customFood.amount,
+                                fat: 0,
+                                carbs: derivedCarbs / customFood.amount,
+                                micros: {
+                                  fiber: customFood.fiber / customFood.amount,
+                                } as Record<string, number>,
+                              };
+                              const item = {
+                                id: `custom-${customFood.id}`,
+                                name: customFood.name,
+                                brand: customFood.brand || 'Custom',
+                                serving: customFood.amount,
+                                energy: customFood.calories,
+                                protein: customFood.protein,
+                                fat: 0,
+                                carbs: derivedCarbs,
+                                micros: { fiber: customFood.fiber },
+                                _basePerG: basePerG,
+                                customFoodId: customFood.id,
+                              };
+                              const VFF = ff(
+                                customFood.calories,
+                                customFood.fiber
+                              );
+                              const VPF = pf(
+                                customFood.calories,
+                                customFood.protein
+                              );
+                              const VWF = wf(VFF, VPF);
+                              const VEF = ef(
+                                customFood.calories,
+                                customFood.amount
+                              );
 
-                        return (
-                          <div
-                            key={`fav-custom-${customFood.id}`}
-                            className="flex items-center gap-3 rounded-xl border p-3"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
-                                {customFood.name}
-                              </div>
-                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
-                                {customFood.brand || 'Custom'}
-                              </div>
-                              <div className="mt-1 text-xs text-slate-600">
-                                {customFood.amount} g → {round(customFood.calories, 0)} kcal • P{' '}
-                                {round(customFood.protein, 1)} • Fiber {round(customFood.fiber, 1)}
-                              </div>
-                              <div className="mt-1 flex items-center gap-1">
-                                <BadgeHalo label="FF" value={VFF} threshold={50} compact />
-                                <BadgeHalo label="PF" value={VPF} threshold={30} compact />
-                                <BadgeHalo label="WF" value={VWF} threshold={80} compact />
-                                <BadgeHalo label="EF" value={VEF} threshold={1} compact />
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      await supabase
-                                        .from('favorites')
-                                        .delete()
-                                        .eq('user_id', DEFAULT_USER_ID)
-                                        .eq('custom_food_id', customFoodId);
-                                      setFavorites((prev) => {
-                                        const next = new Set(prev);
-                                        next.delete(customFood.name.toLowerCase());
-                                        return next;
-                                      });
-                                      setFavoriteCustomFoodIds((prev) => {
-                                        const next = new Set(prev);
-                                        next.delete(customFoodId);
-                                        return next;
-                                      });
-                                    } catch (error) {
-                                      console.error('Error toggling favorite:', error);
-                                    }
-                                  }}
-                                  className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0 text-yellow-500"
-                                  title="Remove from favorites"
+                              return (
+                                <div
+                                  key={`fav-custom-${customFood.id}`}
+                                  className="flex items-center gap-3 rounded-xl border p-3"
                                 >
-                                  ★
+                                  <div className="min-w-0 flex-1">
+                                    <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
+                                      {customFood.name}
+                                    </div>
+                                    <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
+                                      {customFood.brand || 'Custom'}
+                                    </div>
+                                    <div className="mt-1 text-xs text-slate-600">
+                                      {customFood.amount} g →{' '}
+                                      {round(customFood.calories, 0)} kcal • P{' '}
+                                      {round(customFood.protein, 1)} • Fiber{' '}
+                                      {round(customFood.fiber, 1)}
+                                    </div>
+                                    <div className="mt-1 flex items-center gap-1">
+                                      <BadgeHalo
+                                        label="FF"
+                                        value={VFF}
+                                        threshold={50}
+                                        compact
+                                      />
+                                      <BadgeHalo
+                                        label="PF"
+                                        value={VPF}
+                                        threshold={30}
+                                        compact
+                                      />
+                                      <BadgeHalo
+                                        label="WF"
+                                        value={VWF}
+                                        threshold={80}
+                                        compact
+                                      />
+                                      <BadgeHalo
+                                        label="EF"
+                                        value={VEF}
+                                        threshold={1}
+                                        compact
+                                      />
+                                      <button
+                                        onClick={async () => {
+                                          try {
+                                            await supabase
+                                              .from('favorites')
+                                              .delete()
+                                              .eq('user_id', DEFAULT_USER_ID)
+                                              .eq(
+                                                'custom_food_id',
+                                                customFoodId
+                                              );
+                                            setFavorites((prev) => {
+                                              const next = new Set(prev);
+                                              next.delete(
+                                                customFood.name.toLowerCase()
+                                              );
+                                              return next;
+                                            });
+                                            setFavoriteCustomFoodIds((prev) => {
+                                              const next = new Set(prev);
+                                              next.delete(customFoodId);
+                                              return next;
+                                            });
+                                          } catch (error) {
+                                            console.error(
+                                              'Error toggling favorite:',
+                                              error
+                                            );
+                                          }
+                                        }}
+                                        className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0 text-yellow-500"
+                                        title="Remove from favorites"
+                                      >
+                                        ★
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => addFood(item)}
+                                    className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }
+                          if (favorite.type === 'fdc') {
+                            const fdcId = favorite.id;
+                            const favoriteFoodFromCache =
+                              favoriteFoodCache.get(fdcId);
+                            const favoriteFood =
+                              favoriteFoodFromCache ||
+                              results.find(
+                                (r) => r?.fdcId === fdcId || r?.FdcId === fdcId
+                              );
+
+                            if (!favoriteFood) return null;
+
+                            const n = safeParse(favoriteFood, 100);
+                            const fiber = safeNum(n.micros?.fiber);
+                            const VFF = ff(n.energy, fiber);
+                            const VPF = pf(n.energy, n.protein);
+                            const VWF = wf(VFF, VPF);
+                            const VEF = ef(n.energy, 100);
+
+                            return (
+                              <div
+                                key={`fav-fdc-${fdcId}`}
+                                className="flex items-center gap-3 rounded-xl border p-3"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
+                                    {(
+                                      favoriteFood?.description ||
+                                      favoriteFood?.lowercaseDescription ||
+                                      ''
+                                    ).toLowerCase()}
+                                  </div>
+                                  <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
+                                    {tidyText(
+                                      favoriteFood?.brandOwner ||
+                                        favoriteFood?.brandName ||
+                                        favoriteFood?.dataType ||
+                                        ''
+                                    )}
+                                  </div>
+                                  <div className="mt-1 text-xs text-slate-600">
+                                    100 g → {round(n.energy, 0)} kcal • P{' '}
+                                    {round(n.protein, 1)} • Fiber{' '}
+                                    {round(fiber, 1)}
+                                  </div>
+                                  <div className="mt-1 flex items-center gap-1">
+                                    <BadgeHalo
+                                      label="FF"
+                                      value={VFF}
+                                      threshold={50}
+                                      compact
+                                    />
+                                    <BadgeHalo
+                                      label="PF"
+                                      value={VPF}
+                                      threshold={30}
+                                      compact
+                                    />
+                                    <BadgeHalo
+                                      label="WF"
+                                      value={VWF}
+                                      threshold={80}
+                                      compact
+                                    />
+                                    <BadgeHalo
+                                      label="EF"
+                                      value={VEF}
+                                      threshold={1}
+                                      compact
+                                    />
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          await supabase
+                                            .from('favorites')
+                                            .delete()
+                                            .eq('user_id', DEFAULT_USER_ID)
+                                            .eq('fdc_id', fdcId);
+                                          const normalizedName = (
+                                            favoriteFood?.description ||
+                                            favoriteFood?.lowercaseDescription ||
+                                            ''
+                                          ).toLowerCase();
+                                          setFavorites((prev) => {
+                                            const next = new Set(prev);
+                                            next.delete(normalizedName);
+                                            return next;
+                                          });
+                                          setFavoriteFdcIds((prev) => {
+                                            const next = new Set(prev);
+                                            next.delete(fdcId);
+                                            return next;
+                                          });
+                                        } catch (error) {
+                                          console.error(
+                                            'Error toggling favorite:',
+                                            error
+                                          );
+                                        }
+                                      }}
+                                      className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0 text-yellow-500"
+                                      title="Remove from favorites"
+                                    >
+                                      ★
+                                    </button>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => addFood(favoriteFood)}
+                                  className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
+                                >
+                                  Add
                                 </button>
                               </div>
-                            </div>
-                            <button
-                              onClick={() => addFood(item)}
-                              className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
-                            >
-                              Add
-                            </button>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }
-                    if (favorite.type === 'fdc') {
-                      const fdcId = favorite.id;
-                      const favoriteFoodFromCache = favoriteFoodCache.get(fdcId);
-                      const favoriteFood = favoriteFoodFromCache || results.find(
-                        r => r?.fdcId === fdcId || r?.FdcId === fdcId
-                      );
-
-                      if (!favoriteFood) return null;
-
-                      const n = safeParse(favoriteFood, 100);
-                        const fiber = safeNum(n.micros?.fiber);
-                        const VFF = ff(n.energy, fiber);
-                        const VPF = pf(n.energy, n.protein);
-                        const VWF = wf(VFF, VPF);
-                        const VEF = ef(n.energy, 100);
-
-                        return (
-                          <div
-                            key={`fav-fdc-${fdcId}`}
-                            className="flex items-center gap-3 rounded-xl border p-3"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
-                                {(favoriteFood?.description || favoriteFood?.lowercaseDescription || '').toLowerCase()}
-                              </div>
-                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
-                                {tidyText(
-                                  favoriteFood?.brandOwner || favoriteFood?.brandName || favoriteFood?.dataType || ''
-                                )}
-                              </div>
-                              <div className="mt-1 text-xs text-slate-600">
-                                100 g → {round(n.energy, 0)} kcal • P{' '}
-                                {round(n.protein, 1)} • Fiber {round(fiber, 1)}
-                              </div>
-                              <div className="mt-1 flex items-center gap-1">
-                                <BadgeHalo label="FF" value={VFF} threshold={50} compact />
-                                <BadgeHalo label="PF" value={VPF} threshold={30} compact />
-                                <BadgeHalo label="WF" value={VWF} threshold={80} compact />
-                                <BadgeHalo label="EF" value={VEF} threshold={1} compact />
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      await supabase
-                                        .from('favorites')
-                                        .delete()
-                                        .eq('user_id', DEFAULT_USER_ID)
-                                        .eq('fdc_id', fdcId);
-                                      const normalizedName = (favoriteFood?.description || favoriteFood?.lowercaseDescription || '').toLowerCase();
-                                      setFavorites((prev) => {
-                                        const next = new Set(prev);
-                                        next.delete(normalizedName);
-                                        return next;
-                                      });
-                                      setFavoriteFdcIds((prev) => {
-                                        const next = new Set(prev);
-                                        next.delete(fdcId);
-                                        return next;
-                                      });
-                                    } catch (error) {
-                                      console.error('Error toggling favorite:', error);
-                                    }
-                                  }}
-                                  className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0 text-yellow-500"
-                                  title="Remove from favorites"
-                                >
-                                  ★
-                                </button>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => addFood(favoriteFood)}
-                              className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
-                            >
-                              Add
-                            </button>
-                          </div>
-                        );
-                    }
-                    return null;
-                    })}
-                    </>
+                            );
+                          }
+                          return null;
+                        })}
+                      </>
                     )}
                   </div>
                   {favoritesTotalPages > 1 && (
@@ -2314,70 +2771,83 @@ export default function WellnessCalculator() {
               )}
 
               {/* Search Results Section */}
-              {showResults && (
+              {showResults && paginatedResults.length > 0 && (
                 <div className="mt-4" id="search-results-section">
-                  <h3 className="text-sm font-medium text-slate-700 mb-2">Search Results</h3>
-                  <div className="space-y-2 overflow-hidden" style={{ minHeight: '400px' }}>
-                      {paginatedResults.map((f, idx) => {
-                    const n = safeParse(f, 100);
-                    const foodName = tidyText(
-                      f?.description ||
-                        f?.lowercaseDescription ||
-                        'Food'
-                    );
-                    const normalizedName = foodName.toLowerCase();
-                    const fdcId = f?.fdcId || f?.FdcId || null;
-                    const isFavorite = fdcId ? favoriteFdcIds.has(fdcId) : false;
+                  <h3 className="text-sm font-medium text-slate-700 mb-2">
+                    {isDemoMode ? 'Demo Foods' : 'Search Results'}
+                  </h3>
+                  <div
+                    className="space-y-2 overflow-hidden"
+                    style={{ minHeight: '400px' }}
+                  >
+                    {paginatedResults.map((f, idx) => {
+                      const n = safeParse(f, 100);
+                      const foodName = tidyText(
+                        f?.description || f?.lowercaseDescription || 'Food'
+                      );
+                      const normalizedName = foodName.toLowerCase();
+                      const fdcId = f?.fdcId || f?.FdcId || null;
+                      const isFavorite = fdcId
+                        ? favoriteFdcIds.has(fdcId)
+                        : false;
 
-                    const fiber = safeNum(n.micros?.fiber);
-                    const VFF = ff(n.energy, fiber);
-                    const VPF = pf(n.energy, n.protein);
-                    const VWF = wf(VFF, VPF);
-                    const VEF = ef(n.energy, 100);
+                      const fiber = safeNum(n.micros?.fiber);
+                      const VFF = ff(n.energy, fiber);
+                      const VPF = pf(n.energy, n.protein);
+                      const VWF = wf(VFF, VPF);
+                      const VEF = ef(n.energy, 100);
 
-                    const toggleFavorite = async () => {
-                      try {
-                        if (!fdcId) {
-                          console.error('Cannot favorite item without fdc_id');
-                          return;
-                        }
-                        if (isFavorite) {
-                          await supabase
-                            .from('favorites')
-                            .delete()
-                            .eq('user_id', DEFAULT_USER_ID)
-                            .eq('fdc_id', fdcId);
-                          setFavorites((prev) => {
-                            const next = new Set(prev);
-                            next.delete(normalizedName);
-                            return next;
-                          });
-                          setFavoriteFdcIds((prev) => {
-                            const next = new Set(prev);
-                            next.delete(fdcId);
-                            return next;
-                          });
-                        } else {
-                          console.log('Saving favorite:', { normalizedName, fdcId, food: f });
-                          await supabase
-                            .from('favorites')
-                            .insert({
+                      const toggleFavorite = async () => {
+                        try {
+                          if (!fdcId) {
+                            console.error(
+                              'Cannot favorite item without fdc_id'
+                            );
+                            return;
+                          }
+                          if (isFavorite) {
+                            await supabase
+                              .from('favorites')
+                              .delete()
+                              .eq('user_id', DEFAULT_USER_ID)
+                              .eq('fdc_id', fdcId);
+                            setFavorites((prev) => {
+                              const next = new Set(prev);
+                              next.delete(normalizedName);
+                              return next;
+                            });
+                            setFavoriteFdcIds((prev) => {
+                              const next = new Set(prev);
+                              next.delete(fdcId);
+                              return next;
+                            });
+                          } else {
+                            console.log('Saving favorite:', {
+                              normalizedName,
+                              fdcId,
+                              food: f,
+                            });
+                            await supabase.from('favorites').insert({
                               user_id: DEFAULT_USER_ID,
                               food_name: normalizedName,
                               fdc_id: fdcId,
                             });
-                          setFavorites((prev) => new Set([...prev, normalizedName]));
-                          setFavoriteFdcIds((prev) => new Set([...prev, fdcId]));
-                          setFavoriteFoodCache(prev => {
-                            const newMap = new Map(prev);
-                            newMap.set(fdcId, f);
-                            return newMap;
-                          });
+                            setFavorites(
+                              (prev) => new Set([...prev, normalizedName])
+                            );
+                            setFavoriteFdcIds(
+                              (prev) => new Set([...prev, fdcId])
+                            );
+                            setFavoriteFoodCache((prev) => {
+                              const newMap = new Map(prev);
+                              newMap.set(fdcId, f);
+                              return newMap;
+                            });
+                          }
+                        } catch (error) {
+                          console.error('Error toggling favorite:', error);
                         }
-                      } catch (error) {
-                        console.error('Error toggling favorite:', error);
-                      }
-                    };
+                      };
 
                       return (
                         <div
@@ -2390,7 +2860,10 @@ export default function WellnessCalculator() {
                             </div>
                             <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
                               {tidyText(
-                                f?.brandOwner || f?.brandName || f?.dataType || ''
+                                f?.brandOwner ||
+                                  f?.brandName ||
+                                  f?.dataType ||
+                                  ''
                               )}
                             </div>
                             <div className="mt-1 text-xs text-slate-600">
@@ -2398,16 +2871,46 @@ export default function WellnessCalculator() {
                               {round(n.protein, 1)} • Fiber {round(fiber, 1)}
                             </div>
                             <div className="mt-1 flex items-center gap-1">
-                              <BadgeHalo label="FF" value={VFF} threshold={50} compact />
-                              <BadgeHalo label="PF" value={VPF} threshold={30} compact />
-                              <BadgeHalo label="WF" value={VWF} threshold={80} compact />
-                              <BadgeHalo label="EF" value={VEF} threshold={1} compact />
+                              <BadgeHalo
+                                label="FF"
+                                value={VFF}
+                                threshold={50}
+                                compact
+                              />
+                              <BadgeHalo
+                                label="PF"
+                                value={VPF}
+                                threshold={30}
+                                compact
+                              />
+                              <BadgeHalo
+                                label="WF"
+                                value={VWF}
+                                threshold={80}
+                                compact
+                              />
+                              <BadgeHalo
+                                label="EF"
+                                value={VEF}
+                                threshold={1}
+                                compact
+                              />
                               <button
                                 onClick={toggleFavorite}
                                 className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
-                                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                                title={
+                                  isFavorite
+                                    ? 'Remove from favorites'
+                                    : 'Add to favorites'
+                                }
                               >
-                                <span className={isFavorite ? 'text-yellow-500' : 'text-gray-300'}>
+                                <span
+                                  className={
+                                    isFavorite
+                                      ? 'text-yellow-500'
+                                      : 'text-gray-300'
+                                  }
+                                >
                                   ★
                                 </span>
                               </button>
@@ -2421,45 +2924,53 @@ export default function WellnessCalculator() {
                           </button>
                         </div>
                       );
-                      })}
+                    })}
+                  </div>
+                  {searchResultsPages > 1 && (
+                    <div className="mt-3 flex justify-end items-center gap-2">
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          await searchFoods(currentPage - 1);
+                          const foodSearchElement =
+                            document.getElementById('food-search');
+                          if (foodSearchElement) {
+                            foodSearchElement.scrollIntoView({
+                              behavior: 'smooth',
+                              block: 'start',
+                            });
+                          }
+                        }}
+                        disabled={currentPage === 1 || isSearching}
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-slate-600">
+                        Page {currentPage} of {searchResultsPages}
+                      </span>
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          await searchFoods(currentPage + 1);
+                          const foodSearchElement =
+                            document.getElementById('food-search');
+                          if (foodSearchElement) {
+                            foodSearchElement.scrollIntoView({
+                              behavior: 'smooth',
+                              block: 'start',
+                            });
+                          }
+                        }}
+                        disabled={
+                          currentPage >= searchResultsPages || isSearching
+                        }
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
                     </div>
-                    {searchResultsPages > 1 && (
-                      <div className="mt-3 flex justify-end items-center gap-2">
-                        <button
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            const currentScrollY = window.scrollY;
-                            await searchFoods(currentPage - 1);
-                            window.scrollTo(0, currentScrollY);
-                            requestAnimationFrame(() => {
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            });
-                          }}
-                          disabled={currentPage === 1 || isSearching}
-                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Previous
-                        </button>
-                        <span className="text-sm text-slate-600">
-                          Page {currentPage} of {searchResultsPages}
-                        </span>
-                        <button
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            const currentScrollY = window.scrollY;
-                            await searchFoods(currentPage + 1);
-                            window.scrollTo(0, currentScrollY);
-                            requestAnimationFrame(() => {
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            });
-                          }}
-                          disabled={currentPage >= searchResultsPages || isSearching}
-                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    )}
+                  )}
                 </div>
               )}
             </section>
@@ -2477,28 +2988,30 @@ export default function WellnessCalculator() {
                   value={`${round(totals.mass, 1)}`}
                   tooltip="(g)"
                 />
-                <div>
-                  <Stat
-                    label="Calories"
-                    value={`${round(totals.cal, 0)}`}
-                    tooltip="(kcal)"
-                    valueColor={
-                      selectedEnergy &&
-                      ((selectedEnergy === 'bmr' && totals.cal > bmr) ||
-                        (selectedEnergy === 'tdee' && totals.cal > tdee) ||
-                        (selectedEnergy === 'target' && totals.cal > targetCalories))
-                        ? 'text-red-600'
-                        : ''
-                    }
-                  />
-                  {selectedEnergy && (
-                    <div className="text-[11px] text-slate-400 mt-0.5">
-                      {selectedEnergy === 'bmr' && `/ ${round(bmr, 0)}`}
-                      {selectedEnergy === 'tdee' && `/ ${round(tdee, 0)}`}
-                      {selectedEnergy === 'target' && `/ ${round(targetCalories, 0)}`}
-                    </div>
-                  )}
-                </div>
+                <Stat
+                  label="Calories"
+                  value={`${round(totals.cal, 0)}`}
+                  tooltip="(kcal)"
+                  valueColor={
+                    selectedEnergy &&
+                    ((selectedEnergy === 'bmr' && totals.cal > bmr) ||
+                      (selectedEnergy === 'tdee' && totals.cal > tdee) ||
+                      (selectedEnergy === 'target' &&
+                        totals.cal > targetCalories))
+                      ? 'text-red-600'
+                      : ''
+                  }
+                  secondaryLine={
+                    selectedEnergy ? (
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {selectedEnergy === 'bmr' && `/ ${round(bmr, 0)}`}
+                        {selectedEnergy === 'tdee' && `/ ${round(tdee, 0)}`}
+                        {selectedEnergy === 'target' &&
+                          `/ ${round(targetCalories, 0)}`}
+                      </div>
+                    ) : undefined
+                  }
+                />
                 <Stat
                   label="Fiber"
                   value={`${round(totals.fiber, 1)}`}
@@ -2561,7 +3074,7 @@ export default function WellnessCalculator() {
               </div>
               {log.length === 0 && (
                 <p className="text-sm text-slate-500">
-                  Nothing logged yet. Add foods from the search above.
+                  Nothing logged yet. Add foods from the search options above.
                 </p>
               )}
               {log.length > 0 && (
@@ -2679,7 +3192,8 @@ export default function WellnessCalculator() {
             >
               <h2 className="mb-4 text-xl font-semibold">Remove Custom Food</h2>
               <p className="mb-6 text-sm text-slate-600">
-                All instances of this custom food will be removed from your Food Log. Are you sure you want to do this?
+                All instances of this custom food will be removed from your Food
+                Log. Are you sure you want to do this?
               </p>
               <div className="flex justify-end gap-2">
                 <button
@@ -2710,8 +3224,16 @@ export default function WellnessCalculator() {
                         .eq('user_id', DEFAULT_USER_ID)
                         .eq('food_name', customFoodToRemove.name.toLowerCase());
 
-                      setCustomFoods((prev) => prev.filter((food) => food.id !== customFoodToRemove.id));
-                      setLog((prev) => prev.filter((item) => item.name.toLowerCase() !== customFoodToRemove.name.toLowerCase()));
+                      setCustomFoods((prev) =>
+                        prev.filter((food) => food.id !== customFoodToRemove.id)
+                      );
+                      setLog((prev) =>
+                        prev.filter(
+                          (item) =>
+                            item.name.toLowerCase() !==
+                            customFoodToRemove.name.toLowerCase()
+                        )
+                      );
                       setFavorites((prev) => {
                         const next = new Set(prev);
                         next.delete(customFoodToRemove.name.toLowerCase());
@@ -2756,10 +3278,24 @@ export default function WellnessCalculator() {
                       id="customFoodName"
                       type="text"
                       value={customFoodName}
-                      onChange={(e) => setCustomFoodName(e.target.value)}
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      onChange={(e) => {
+                        setCustomFoodName(e.target.value);
+                        if (validationErrors.customFoodName) {
+                          setValidationError('customFoodName', '');
+                        }
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.customFoodName
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="e.g., Homemade Smoothie"
                     />
+                    {validationErrors.customFoodName && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.customFoodName}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -2792,10 +3328,24 @@ export default function WellnessCalculator() {
                       id="customFoodAmount"
                       type="number"
                       value={customFoodAmount}
-                      onChange={(e) => setCustomFoodAmount(e.target.value)}
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      onChange={(e) => {
+                        setCustomFoodAmount(e.target.value);
+                        if (validationErrors.customFoodAmount) {
+                          setValidationError('customFoodAmount', '');
+                        }
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.customFoodAmount
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="100"
                     />
+                    {validationErrors.customFoodAmount && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.customFoodAmount}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -2809,10 +3359,24 @@ export default function WellnessCalculator() {
                       id="customFoodCalories"
                       type="number"
                       value={customFoodCalories}
-                      onChange={(e) => setCustomFoodCalories(e.target.value)}
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      onChange={(e) => {
+                        setCustomFoodCalories(e.target.value);
+                        if (validationErrors.customFoodCalories) {
+                          setValidationError('customFoodCalories', '');
+                        }
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.customFoodCalories
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
+                    {validationErrors.customFoodCalories && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.customFoodCalories}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -2826,10 +3390,24 @@ export default function WellnessCalculator() {
                       id="customFoodFiber"
                       type="number"
                       value={customFoodFiber}
-                      onChange={(e) => setCustomFoodFiber(e.target.value)}
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      onChange={(e) => {
+                        setCustomFoodFiber(e.target.value);
+                        if (validationErrors.customFoodFiber) {
+                          setValidationError('customFoodFiber', '');
+                        }
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.customFoodFiber
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
+                    {validationErrors.customFoodFiber && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.customFoodFiber}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -2843,10 +3421,24 @@ export default function WellnessCalculator() {
                       id="customFoodProtein"
                       type="number"
                       value={customFoodProtein}
-                      onChange={(e) => setCustomFoodProtein(e.target.value)}
-                      className="w-full rounded-xl border border-slate-400 focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm"
+                      onChange={(e) => {
+                        setCustomFoodProtein(e.target.value);
+                        if (validationErrors.customFoodProtein) {
+                          setValidationError('customFoodProtein', '');
+                        }
+                      }}
+                      className={`w-full rounded-xl border ${
+                        validationErrors.customFoodProtein
+                          ? 'border-rose-500'
+                          : 'border-slate-400'
+                      } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
+                    {validationErrors.customFoodProtein && (
+                      <p className="mt-1 text-xs text-rose-600">
+                        {validationErrors.customFoodProtein}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -2866,10 +3458,30 @@ export default function WellnessCalculator() {
                       const VEF = ef(cal, amt);
                       return (
                         <>
-                          <BadgeHalo label="FF" value={VFF} threshold={50} compact />
-                          <BadgeHalo label="PF" value={VPF} threshold={30} compact />
-                          <BadgeHalo label="WF" value={VWF} threshold={80} compact />
-                          <BadgeHalo label="EF" value={VEF} threshold={1} compact />
+                          <BadgeHalo
+                            label="FF"
+                            value={VFF}
+                            threshold={50}
+                            compact
+                          />
+                          <BadgeHalo
+                            label="PF"
+                            value={VPF}
+                            threshold={30}
+                            compact
+                          />
+                          <BadgeHalo
+                            label="WF"
+                            value={VWF}
+                            threshold={80}
+                            compact
+                          />
+                          <BadgeHalo
+                            label="EF"
+                            value={VEF}
+                            threshold={1}
+                            compact
+                          />
                         </>
                       );
                     })()}
@@ -2895,6 +3507,9 @@ export default function WellnessCalculator() {
           </div>
         )}
       </div>
+      <footer className="text-center py-4">
+        <p className="text-gray-500 text-xs">© Ross Andrus, 2025</p>
+      </footer>
     </div>
   );
 }
