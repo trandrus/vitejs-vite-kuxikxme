@@ -33,7 +33,6 @@ body {
   margin: 0;
   display: flex;
   place-items: center;
-  justify-content: center;
   min-width: 320px;
   min-height: 100vh;
 }
@@ -66,4 +65,31 @@ h1 {
   a:hover {
     color: #747bff;
   }
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.loading-dots .dot1 {
+  display: inline-block;
+  animation: blink 1.4s infinite;
+  animation-delay: 0s;
+}
+
+.loading-dots .dot2 {
+  display: inline-block;
+  animation: blink 1.4s infinite;
+  animation-delay: 0.2s;
+}
+
+.loading-dots .dot3 {
+  display: inline-block;
+  animation: blink 1.4s infinite;
+  animation-delay: 0.4s;
 }

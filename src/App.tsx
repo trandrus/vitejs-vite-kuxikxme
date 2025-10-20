@@ -9,7 +9,6 @@ function round(x: any, d = 0) {
   const n = Number(x);
   if (!Number.isFinite(n)) return 0;
   const p = 10 ** d;
-  a;
   return Math.round((n + Number.EPSILON) * p) / p;
 }
 function safeNum(x: any, fallback = 0) {
@@ -267,9 +266,7 @@ function Stat({
       <div className="text-[9px] uppercase tracking-wide text-slate-500">
         {label}
       </div>
-      <div className={`text-base font-semibold ${valueColor || ''}`}>
-        {value}
-      </div>
+      <div className={`text-base font-semibold ${valueColor || ''}`}>{value}</div>
       {tooltip ? (
         <div className="mt-0.5 text-[10px] text-slate-500">{tooltip}</div>
       ) : null}
@@ -488,9 +485,7 @@ function FoodCard({
             } px-2 py-1 text-left text-base font-semibold bg-white/70 focus:border-slate-500 focus:ring-0 outline-none cursor-text`}
           />
           {amtError ? (
-            <div className="mt-1 text-[9px] text-left text-rose-600">
-              {amtError}
-            </div>
+            <div className="mt-1 text-[9px] text-left text-rose-600">{amtError}</div>
           ) : (
             <div className="mt-1 text-[10px] text-left text-slate-500">(g)</div>
           )}
@@ -532,99 +527,91 @@ function FoodCard({
         {(() => {
           const fdcId = item.fdcId || null;
           const customFoodId = item.customFoodId || null;
-          const isFavorite = fdcId
-            ? favoriteFdcIds.has(fdcId)
-            : customFoodId
-            ? favoriteCustomFoodIds.has(customFoodId)
-            : false;
+          const isFavorite = fdcId ? favoriteFdcIds.has(fdcId) : (customFoodId ? favoriteCustomFoodIds.has(customFoodId) : false);
 
           return (
-            <button
-              onClick={async () => {
-                const normalizedName = item.name.toLowerCase().trim();
-                try {
-                  if (isFavorite) {
-                    if (fdcId) {
-                      await supabase
-                        .from('favorites')
-                        .delete()
-                        .eq('user_id', DEFAULT_USER_ID)
-                        .eq('fdc_id', fdcId);
-                      setFavoriteFdcIds((prev) => {
-                        const next = new Set(prev);
-                        next.delete(fdcId);
-                        return next;
-                      });
-                    } else if (customFoodId) {
-                      await supabase
-                        .from('favorites')
-                        .delete()
-                        .eq('user_id', DEFAULT_USER_ID)
-                        .eq('custom_food_id', customFoodId);
-                      setFavoriteCustomFoodIds((prev) => {
-                        const next = new Set(prev);
-                        next.delete(customFoodId);
-                        return next;
-                      });
-                    }
-                    setFavorites((prev) => {
-                      const next = new Set(prev);
-                      next.delete(normalizedName);
-                      return next;
-                    });
-                  } else {
-                    if (!fdcId && !customFoodId) {
-                      console.error(
-                        'Cannot favorite item without fdc_id or custom_food_id'
-                      );
-                      return;
-                    }
-                    if (fdcId) {
-                      await supabase.from('favorites').insert({
-                        user_id: DEFAULT_USER_ID,
-                        food_name: normalizedName,
-                        fdc_id: fdcId,
-                      });
-                      setFavoriteFdcIds((prev) => new Set([...prev, fdcId]));
-                      if (item._originalFood) {
-                        setFavoriteFoodCache((prev) => {
-                          const newMap = new Map(prev);
-                          newMap.set(fdcId, item._originalFood);
-                          return newMap;
-                        });
-                      }
-                    } else if (customFoodId) {
-                      await supabase.from('favorites').insert({
-                        user_id: DEFAULT_USER_ID,
-                        food_name: normalizedName,
-                        custom_food_id: customFoodId,
-                      });
-                      setFavoriteCustomFoodIds(
-                        (prev) => new Set([...prev, customFoodId])
-                      );
-                    }
-                    setFavorites((prev) => new Set([...prev, normalizedName]));
-                  }
-                } catch (error) {
-                  console.error('Error toggling favorite:', error);
+        <button
+          onClick={async () => {
+            const normalizedName = item.name.toLowerCase().trim();
+            try {
+              if (isFavorite) {
+                if (fdcId) {
+                  await supabase
+                    .from('favorites')
+                    .delete()
+                    .eq('user_id', DEFAULT_USER_ID)
+                    .eq('fdc_id', fdcId);
+                  setFavoriteFdcIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(fdcId);
+                    return next;
+                  });
+                } else if (customFoodId) {
+                  await supabase
+                    .from('favorites')
+                    .delete()
+                    .eq('user_id', DEFAULT_USER_ID)
+                    .eq('custom_food_id', customFoodId);
+                  setFavoriteCustomFoodIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(customFoodId);
+                    return next;
+                  });
                 }
-              }}
-              className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
-              title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-            >
-              <span
-                className={isFavorite ? 'text-yellow-500' : 'text-gray-300'}
-              >
-                ★
-              </span>
-            </button>
+                setFavorites((prev) => {
+                  const next = new Set(prev);
+                  next.delete(normalizedName);
+                  return next;
+                });
+              } else {
+                if (!fdcId && !customFoodId) {
+                  console.error('Cannot favorite item without fdc_id or custom_food_id');
+                  return;
+                }
+                if (fdcId) {
+                  await supabase
+                    .from('favorites')
+                    .insert({
+                      user_id: DEFAULT_USER_ID,
+                      food_name: normalizedName,
+                      fdc_id: fdcId,
+                    });
+                  setFavoriteFdcIds((prev) => new Set([...prev, fdcId]));
+                  if (item._originalFood) {
+                    setFavoriteFoodCache(prev => {
+                      const newMap = new Map(prev);
+                      newMap.set(fdcId, item._originalFood);
+                      return newMap;
+                    });
+                  }
+                } else if (customFoodId) {
+                  await supabase
+                    .from('favorites')
+                    .insert({
+                      user_id: DEFAULT_USER_ID,
+                      food_name: normalizedName,
+                      custom_food_id: customFoodId,
+                    });
+                  setFavoriteCustomFoodIds((prev) => new Set([...prev, customFoodId]));
+                }
+                setFavorites((prev) => new Set([...prev, normalizedName]));
+              }
+            } catch (error) {
+              console.error('Error toggling favorite:', error);
+            }
+          }}
+          className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
+          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          <span className={isFavorite ? 'text-yellow-500' : 'text-gray-300'}>
+            ★
+          </span>
+        </button>
           );
         })()}
         <div className="flex flex-wrap gap-2">
           {SELECTED_MICROS.map((m) => {
-            const val = safeNum(
-              item.micros?.[m.key as keyof typeof item.micros]
-            );
+            const val = safeNum(item.micros?.[m.key as keyof typeof item.micros]);
             if (!val) return null;
             return (
               <span
@@ -825,18 +812,19 @@ export default function WellnessCalculator() {
   const [wfResults, setWfResults] = useState<any[]>([]);
   const [wfPage, setWfPage] = useState(1);
   const [isLoadingWF, setIsLoadingWF] = useState(false);
+  const [showEFMode, setShowEFMode] = useState(false);
+  const [efResults, setEfResults] = useState<any[]>([]);
+  const [efPage, setEfPage] = useState(1);
+  const [isLoadingEF, setIsLoadingEF] = useState(false);
 
   // ===== Custom food state =====
   const [customFoods, setCustomFoods] = useState<any[]>([]);
   const [showCustomFoods, setShowCustomFoods] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showCustomFoodModal, setShowCustomFoodModal] = useState(false);
-  const [showRemoveCustomFoodModal, setShowRemoveCustomFoodModal] =
-    useState(false);
+  const [showRemoveCustomFoodModal, setShowRemoveCustomFoodModal] = useState(false);
   const [customFoodToRemove, setCustomFoodToRemove] = useState<any>(null);
-  const [favoriteFoodCache, setFavoriteFoodCache] = useState<Map<number, any>>(
-    new Map()
-  );
+  const [favoriteFoodCache, setFavoriteFoodCache] = useState<Map<number, any>>(new Map());
   const [cacheVersion, setCacheVersion] = useState(0);
   const [customFoodName, setCustomFoodName] = useState('');
   const [customFoodBrand, setCustomFoodBrand] = useState('');
@@ -844,13 +832,9 @@ export default function WellnessCalculator() {
   const [customFoodCalories, setCustomFoodCalories] = useState('');
   const [customFoodFiber, setCustomFoodFiber] = useState('');
   const [customFoodProtein, setCustomFoodProtein] = useState('');
-  const [selectedEnergy, setSelectedEnergy] = useState<
-    'bmr' | 'tdee' | 'target' | null
-  >(null);
+  const [selectedEnergy, setSelectedEnergy] = useState<'bmr' | 'tdee' | 'target' | null>(null);
 
-  const [validationErrors, setValidationErrors] = useState<
-    Record<string, string>
-  >({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const validateAge = (value: number): string => {
     if (value <= 0) return 'Age must be greater than 0';
@@ -955,9 +939,7 @@ export default function WellnessCalculator() {
           setCustomFoodCalories(draft.calories || '');
           setCustomFoodFiber(draft.fiber || '');
           setCustomFoodProtein(draft.protein || '');
-          setSelectedEnergy(
-            (data.selected_energy as 'bmr' | 'tdee' | 'target' | null) || null
-          );
+          setSelectedEnergy(data.selected_energy as 'bmr' | 'tdee' | 'target' | null || null);
         } else {
           const { error: insertError } = await supabase
             .from('user_settings')
@@ -983,10 +965,7 @@ export default function WellnessCalculator() {
       try {
         const { error } = await supabase
           .from('user_settings')
-          .update({
-            fdc_api_key: fdcApiKey,
-            updated_at: new Date().toISOString(),
-          })
+          .update({ fdc_api_key: fdcApiKey, updated_at: new Date().toISOString() })
           .eq('user_id', DEFAULT_USER_ID);
 
         if (error) throw error;
@@ -1007,10 +986,7 @@ export default function WellnessCalculator() {
       try {
         const { error } = await supabase
           .from('user_settings')
-          .update({
-            selected_energy: selectedEnergy,
-            updated_at: new Date().toISOString(),
-          })
+          .update({ selected_energy: selectedEnergy, updated_at: new Date().toISOString() })
           .eq('user_id', DEFAULT_USER_ID);
 
         if (error) throw error;
@@ -1032,11 +1008,7 @@ export default function WellnessCalculator() {
       try {
         const { error } = await supabase
           .from('user_settings')
-          .update({
-            search_results: results,
-            total_results: totalResults,
-            updated_at: new Date().toISOString(),
-          })
+          .update({ search_results: results, total_results: totalResults, updated_at: new Date().toISOString() })
           .eq('user_id', DEFAULT_USER_ID);
 
         if (error) throw error;
@@ -1066,7 +1038,7 @@ export default function WellnessCalculator() {
           .from('user_settings')
           .update({
             custom_food_draft: draft,
-            updated_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
           .eq('user_id', DEFAULT_USER_ID);
 
@@ -1078,14 +1050,7 @@ export default function WellnessCalculator() {
 
     const timeoutId = setTimeout(saveDraft, 500);
     return () => clearTimeout(timeoutId);
-  }, [
-    customFoodName,
-    customFoodBrand,
-    customFoodAmount,
-    customFoodCalories,
-    customFoodFiber,
-    customFoodProtein,
-  ]);
+  }, [customFoodName, customFoodBrand, customFoodAmount, customFoodCalories, customFoodFiber, customFoodProtein]);
 
   // ===== Food log & CSV (state + sticky fallback) =====
   const [log, setLog] = useState<LogItem[]>([]);
@@ -1093,9 +1058,7 @@ export default function WellnessCalculator() {
   const [showCsv, setShowCsv] = useState<boolean>(true);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [favoriteFdcIds, setFavoriteFdcIds] = useState<Set<number>>(new Set());
-  const [favoriteCustomFoodIds, setFavoriteCustomFoodIds] = useState<
-    Set<string>
-  >(new Set());
+  const [favoriteCustomFoodIds, setFavoriteCustomFoodIds] = useState<Set<string>>(new Set());
   const itemsPerPage = 10;
   const totalPages = Math.ceil(totalResults / itemsPerPage);
   const customFoodsTotalPages = Math.ceil(customFoods.length / itemsPerPage);
@@ -1103,23 +1066,15 @@ export default function WellnessCalculator() {
     (customFoodsPage - 1) * itemsPerPage,
     customFoodsPage * itemsPerPage
   );
-  const allFavorites = [
-    ...Array.from(favoriteCustomFoodIds).map((id) => ({
-      type: 'custom' as const,
-      id,
-    })),
-    ...Array.from(favoriteFdcIds).map((id) => ({ type: 'fdc' as const, id })),
-  ];
+  const allFavorites = [...Array.from(favoriteCustomFoodIds).map(id => ({ type: 'custom' as const, id })), ...Array.from(favoriteFdcIds).map(id => ({ type: 'fdc' as const, id }))];
   const favoritesTotalPages = Math.ceil(allFavorites.length / itemsPerPage);
   const paginatedFavorites = allFavorites.slice(
     (favoritesPage - 1) * itemsPerPage,
     favoritesPage * itemsPerPage
   );
-  const searchResultsPages = Math.max(
-    totalPages,
-    Math.ceil(results.length / itemsPerPage)
-  );
+  const searchResultsPages = Math.max(totalPages, Math.ceil(results.length / itemsPerPage));
   const wfTotalPages = Math.ceil(wfResults.length / 10);
+  const efTotalPages = Math.ceil(efResults.length / 10);
 
   // Load custom foods from Supabase
   useEffect(() => {
@@ -1184,15 +1139,13 @@ export default function WellnessCalculator() {
     const fetchMissingFavorites = async () => {
       console.log('Fetching missing favorites...', {
         fdcFavoritesCount: favoriteFdcIds.size,
-        cacheSize: favoriteFoodCache.size,
+        cacheSize: favoriteFoodCache.size
       });
 
       for (const fdcId of favoriteFdcIds) {
         console.log('Checking favorite fdcId:', fdcId);
 
-        const inResults = results.find(
-          (r) => r?.fdcId === fdcId || r?.FdcId === fdcId
-        );
+        const inResults = results.find(r => r?.fdcId === fdcId || r?.FdcId === fdcId);
         if (inResults) {
           console.log('Found in results:', fdcId);
           continue;
@@ -1209,14 +1162,7 @@ export default function WellnessCalculator() {
     };
 
     fetchMissingFavorites();
-  }, [
-    showFavoritesOnly,
-    favorites,
-    favoriteFdcIds,
-    customFoods,
-    results,
-    fdcApiKey,
-  ]);
+  }, [showFavoritesOnly, favorites, favoriteFdcIds, customFoods, results, fdcApiKey]);
 
   // Load log from Supabase on mount
   useEffect(() => {
@@ -1271,7 +1217,10 @@ export default function WellnessCalculator() {
   useEffect(() => {
     const saveLog = async () => {
       try {
-        await supabase.from('food_log').delete().eq('user_id', DEFAULT_USER_ID);
+        await supabase
+          .from('food_log')
+          .delete()
+          .eq('user_id', DEFAULT_USER_ID);
 
         if (log.length > 0) {
           const items = log.map((item) => ({
@@ -1283,7 +1232,9 @@ export default function WellnessCalculator() {
             custom_food_id: item.customFoodId || null,
           }));
 
-          const { error } = await supabase.from('food_log').insert(items);
+          const { error } = await supabase
+            .from('food_log')
+            .insert(items);
 
           if (error) throw error;
         }
@@ -1375,6 +1326,8 @@ export default function WellnessCalculator() {
     setSearchError('');
     setShowCustomFoods(false);
     setShowFavoritesOnly(false);
+    setShowWFMode(false);
+    setShowEFMode(false);
     setIsDemoMode(true);
   };
 
@@ -1399,24 +1352,24 @@ export default function WellnessCalculator() {
       if (!res.ok) {
         console.log('Failed to fetch food:', res.status, fdcId);
         if (retryCount < 2) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1000));
           return fetchFoodByFdcId(fdcId, retryCount + 1);
         }
         return null;
       }
       const food = await res.json();
       console.log('Successfully fetched food:', fdcId, food);
-      setFavoriteFoodCache((prev) => {
+      setFavoriteFoodCache(prev => {
         const newMap = new Map(prev);
         newMap.set(fdcId, food);
         return newMap;
       });
-      setCacheVersion((prev) => prev + 1);
+      setCacheVersion(prev => prev + 1);
       return food;
     } catch (e) {
       console.error('Error fetching food by FDC ID:', e);
       if (retryCount < 2 && e instanceof Error && e.name !== 'AbortError') {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         return fetchFoodByFdcId(fdcId, retryCount + 1);
       }
       return null;
@@ -1448,21 +1401,13 @@ export default function WellnessCalculator() {
         throw new Error('403 from USDA. Check your key, or click demo.');
       if (!res.ok) throw new Error(`Search failed (${res.status}).`);
       const data = await res.json();
-      console.log('API Response:', {
-        totalHits: data?.totalHits,
-        foodsCount: data?.foods?.length,
-      });
+      console.log('API Response:', { totalHits: data?.totalHits, foodsCount: data?.foods?.length });
       if (data?.foods?.length > 0) {
         console.log('Sample food object keys:', Object.keys(data.foods[0]));
-        console.log(
-          'Sample food fdcId check:',
-          data.foods[0].fdcId,
-          data.foods[0].FdcId
-        );
+        console.log('Sample food fdcId check:', data.foods[0].fdcId, data.foods[0].FdcId);
       }
       const foods = Array.isArray(data?.foods) ? data.foods : [];
-      const newTotalResults =
-        data?.totalHits || (foods.length > itemsPerPage ? foods.length : 0);
+      const newTotalResults = data?.totalHits || (foods.length > itemsPerPage ? foods.length : 0);
 
       setResults(foods);
       setTotalResults(newTotalResults);
@@ -1471,6 +1416,7 @@ export default function WellnessCalculator() {
       setShowCustomFoods(false);
       setShowFavoritesOnly(false);
       setShowWFMode(false);
+      setShowEFMode(false);
       setIsDemoMode(false);
     } catch (e: any) {
       setSearchError(e?.message || 'Search failed');
@@ -1480,10 +1426,7 @@ export default function WellnessCalculator() {
   }
 
   async function searchFoodsByWF(pageNumber = 1) {
-    console.log(
-      'WF button clicked! fdcApiKey:',
-      fdcApiKey ? 'present' : 'missing'
-    );
+    console.log('WF button clicked! fdcApiKey:', fdcApiKey ? 'present' : 'missing');
     setSearchError('');
     const keyError = validateUsdaKey(fdcApiKey);
     if (keyError) {
@@ -1498,7 +1441,7 @@ export default function WellnessCalculator() {
         throw new Error('Enter your (free) USDA API key or use demo foods.');
       }
 
-      const searchQuery = query.trim() || 'vegetables';
+      const searchQuery = query.trim() || 'fruits and vegetables';
       const maxResults = 30000;
       const pageSize = 200;
       const maxPages = Math.ceil(maxResults / pageSize);
@@ -1551,32 +1494,27 @@ export default function WellnessCalculator() {
           _pf: vpf,
           _cal: cal,
           _fiber: fiberG,
-          _protein: proteinG,
+          _protein: proteinG
         };
       });
 
-      console.log(
-        'WF Search - Sample food data:',
-        foodsWithWF.slice(0, 3).map((f: any) => ({
-          name: f.description,
-          cal: f._cal,
-          fiber: f._fiber,
-          protein: f._protein,
-          ff: f._ff,
-          pf: f._pf,
-          wf: f._wf,
-        }))
-      );
+      console.log('WF Search - Sample food data:', foodsWithWF.slice(0, 3).map((f: any) => ({
+        name: f.description,
+        cal: f._cal,
+        fiber: f._fiber,
+        protein: f._protein,
+        ff: f._ff,
+        pf: f._pf,
+        wf: f._wf
+      })));
 
-      const filteredFoods = foodsWithWF.filter(
-        (food: any) => Number.isFinite(food._wf) && food._cal > 0
+      const filteredFoods = foodsWithWF.filter((food: any) =>
+        Number.isFinite(food._wf) && food._cal > 0
       );
       console.log('WF Search - Foods with finite WF:', filteredFoods.length);
 
       if (filteredFoods.length === 0) {
-        throw new Error(
-          `No foods with valid WF scores found. The API returned ${foods.length} food(s), but none had sufficient fiber and protein data to calculate WF scores. Try using Demo mode instead.`
-        );
+        throw new Error(`No foods with valid WF scores found. The API returned ${foods.length} food(s), but none had sufficient fiber and protein data to calculate WF scores. Try using Demo mode instead.`);
       }
 
       filteredFoods.sort((a: any, b: any) => a._wf - b._wf);
@@ -1592,6 +1530,7 @@ export default function WellnessCalculator() {
       setResults(paginatedResults);
       setWfPage(pageNumber);
       setShowWFMode(true);
+      setShowEFMode(false);
       setShowResults(true);
       setShowCustomFoods(false);
       setShowFavoritesOnly(false);
@@ -1601,6 +1540,121 @@ export default function WellnessCalculator() {
       setSearchError(e?.message || 'WF search failed');
     } finally {
       setIsLoadingWF(false);
+    }
+  }
+
+  async function searchFoodsByEF(pageNumber = 1) {
+    console.log('EF button clicked! fdcApiKey:', fdcApiKey ? 'present' : 'missing');
+    setSearchError('');
+    const keyError = validateUsdaKey(fdcApiKey);
+    if (keyError) {
+      console.log('EF Search - Key validation error:', keyError);
+      setValidationError('usdaKey', keyError);
+      return;
+    }
+    setIsLoadingEF(true);
+    try {
+      if (!fdcApiKey) {
+        console.log('EF Search - No API key provided');
+        throw new Error('Enter your (free) USDA API key or use demo foods.');
+      }
+
+      const searchQuery = query.trim() || 'meat, dairy, and sweets';
+      const maxResults = 30000;
+      const pageSize = 200;
+      const maxPages = Math.ceil(maxResults / pageSize);
+
+      let allFoods: any[] = [];
+
+      for (let page = 1; page <= maxPages; page++) {
+        const url = new URL('https://api.nal.usda.gov/fdc/v1/foods/search');
+        url.searchParams.set('api_key', fdcApiKey);
+        url.searchParams.set('query', searchQuery);
+        url.searchParams.set('pageSize', String(pageSize));
+        url.searchParams.set('pageNumber', String(page));
+        url.searchParams.set(
+          'dataType',
+          ['Survey (FNDDS)', 'Foundation', 'SR Legacy'].join(',')
+        );
+
+        const res = await fetch(url.toString());
+        if (res.status === 403)
+          throw new Error('403 from USDA. Check your key, or click demo.');
+        if (!res.ok) throw new Error(`Search failed (${res.status}).`);
+        const data = await res.json();
+        const pageFoods = Array.isArray(data?.foods) ? data.foods : [];
+
+        if (pageFoods.length === 0) break;
+
+        allFoods = allFoods.concat(pageFoods);
+
+        if (allFoods.length >= maxResults || pageFoods.length < pageSize) break;
+      }
+
+      const foods = allFoods;
+
+      console.log('EF Search - Total foods fetched:', foods.length);
+
+      const foodsWithFactors = foods.map((food: any) => {
+        const parsed = safeParse(food, 100);
+        const fiberG = parsed.micros?.fiber || 0;
+        const proteinG = parsed.protein || 0;
+        const cal = parsed.energy || 0;
+        const massG = 100;
+
+        const vff = ff(cal, fiberG);
+        const vpf = pf(cal, proteinG);
+        const wfValue = wf(vff, vpf);
+        const efValue = ef(cal, massG);
+
+        return {
+          ...food,
+          _wf: wfValue,
+          _ef: efValue,
+          _cal: cal,
+          _mass: massG
+        };
+      });
+
+      console.log('EF Search - Sample food data:', foodsWithFactors.slice(0, 3).map((f: any) => ({
+        name: f.description,
+        cal: f._cal,
+        wf: f._wf,
+        ef: f._ef
+      })));
+
+      const filteredFoods = foodsWithFactors.filter((food: any) =>
+        !Number.isFinite(food._wf) && food._cal > 0
+      );
+      console.log('EF Search - Foods with infinite WF:', filteredFoods.length);
+
+      if (filteredFoods.length === 0) {
+        throw new Error(`No foods with infinite WF found. The API returned ${foods.length} food(s), but none had infinite WF values (foods lacking fiber or protein data). Try using Demo mode instead.`);
+      }
+
+      filteredFoods.sort((a: any, b: any) => a._ef - b._ef);
+
+      const itemsPerPageEF = 10;
+      const startIndex = (pageNumber - 1) * itemsPerPageEF;
+      const endIndex = startIndex + itemsPerPageEF;
+      const paginatedResults = filteredFoods.slice(startIndex, endIndex);
+
+      console.log('EF Search - Paginated results:', paginatedResults.length);
+
+      setEfResults(filteredFoods);
+      setResults(paginatedResults);
+      setEfPage(pageNumber);
+      setShowEFMode(true);
+      setShowWFMode(false);
+      setShowResults(true);
+      setShowCustomFoods(false);
+      setShowFavoritesOnly(false);
+      setIsDemoMode(false);
+    } catch (e: any) {
+      console.error('EF Search Error:', e);
+      setSearchError(e?.message || 'EF search failed');
+    } finally {
+      setIsLoadingEF(false);
     }
   }
 
@@ -1623,9 +1677,7 @@ export default function WellnessCalculator() {
     };
     const item: LogItem = ensureBasePerG({
       id: `${food?.fdcId ?? Math.random()}-${Date.now()}`,
-      name:
-        foodName ||
-        tidyText(food?.description || food?.lowercaseDescription || 'Food'),
+      name: foodName || tidyText(food?.description || food?.lowercaseDescription || 'Food'),
       brand:
         tidyText(food?.brandOwner || food?.brandName || food?.dataType || '') ||
         undefined,
@@ -1648,12 +1700,10 @@ export default function WellnessCalculator() {
   }
 
   function addFood(food: any) {
-    const item = food._basePerG
-      ? ensureBasePerG({
-          ...food,
-          id: `${food.id}-${Date.now()}`,
-        })
-      : parseFood(food);
+    const item = food._basePerG ? ensureBasePerG({
+      ...food,
+      id: `${food.id}-${Date.now()}`,
+    }) : parseFood(food);
     setLog((prev) => [item, ...prev]);
     // After adding, jump to first food in the list and focus its Amount box
     try {
@@ -1686,18 +1736,9 @@ export default function WellnessCalculator() {
     const amountError = validateCustomFoodAmount(customFoodAmount);
     const caloriesError = validateCustomFoodCalories(customFoodCalories);
     const fiberError = validateCustomFoodNutrient(customFoodFiber, 'Fiber');
-    const proteinError = validateCustomFoodNutrient(
-      customFoodProtein,
-      'Protein'
-    );
+    const proteinError = validateCustomFoodNutrient(customFoodProtein, 'Protein');
 
-    if (
-      nameError ||
-      amountError ||
-      caloriesError ||
-      fiberError ||
-      proteinError
-    ) {
+    if (nameError || amountError || caloriesError || fiberError || proteinError) {
       setValidationError('customFoodName', nameError);
       setValidationError('customFoodAmount', amountError);
       setValidationError('customFoodCalories', caloriesError);
@@ -1714,15 +1755,17 @@ export default function WellnessCalculator() {
     const protein = safeNum(customFoodProtein, 0);
 
     try {
-      const { error } = await supabase.from('custom_foods').insert({
-        user_id: DEFAULT_USER_ID,
-        name,
-        brand,
-        amount,
-        calories,
-        fiber,
-        protein,
-      });
+      const { error } = await supabase
+        .from('custom_foods')
+        .insert({
+          user_id: DEFAULT_USER_ID,
+          name,
+          brand,
+          amount,
+          calories,
+          fiber,
+          protein,
+        });
 
       if (error) throw error;
 
@@ -1743,7 +1786,7 @@ export default function WellnessCalculator() {
         .from('user_settings')
         .update({
           custom_food_draft: {},
-          updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq('user_id', DEFAULT_USER_ID);
 
@@ -1779,7 +1822,7 @@ export default function WellnessCalculator() {
         .from('user_settings')
         .update({
           custom_food_draft: {},
-          updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq('user_id', DEFAULT_USER_ID);
     } catch (error) {
@@ -1891,14 +1934,7 @@ export default function WellnessCalculator() {
     setCsvPreview(getCurrentCSV());
   }, [log, bmr, tdee, targetCalories]);
 
-  console.log(
-    'Render - showResults:',
-    showResults,
-    'results.length:',
-    results.length,
-    'showWFMode:',
-    showWFMode
-  );
+  console.log('Render - showResults:', showResults, 'results.length:', results.length, 'showWFMode:', showWFMode, 'showEFMode:', showEFMode);
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-b from-slate-50 to-white">
@@ -1916,9 +1952,7 @@ export default function WellnessCalculator() {
               <button
                 className={
                   'px-3 py-1 ' +
-                  (units === 'us'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-black')
+                  (units === 'us' ? 'bg-slate-900 text-white' : 'bg-white text-black')
                 }
                 onClick={() => setUnits('us')}
               >
@@ -1927,9 +1961,7 @@ export default function WellnessCalculator() {
               <button
                 className={
                   'px-3 py-1 ' +
-                  (units === 'metric'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-black')
+                  (units === 'metric' ? 'bg-slate-900 text-white' : 'bg-white text-black')
                 }
                 onClick={() => setUnits('metric')}
               >
@@ -1978,16 +2010,12 @@ export default function WellnessCalculator() {
                     setValidationError('age', validateAge(val));
                   }}
                   className={`w-full rounded-xl border ${
-                    validationErrors.age
-                      ? 'border-rose-500'
-                      : 'border-slate-400'
+                    validationErrors.age ? 'border-rose-500' : 'border-slate-400'
                   } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                   placeholder="0"
                 />
                 {validationErrors.age && (
-                  <p className="mt-1 text-xs text-rose-600">
-                    {validationErrors.age}
-                  </p>
+                  <p className="mt-1 text-xs text-rose-600">{validationErrors.age}</p>
                 )}
               </div>
 
@@ -2010,16 +2038,12 @@ export default function WellnessCalculator() {
                         setValidationError('heightFt', validateHeightFt(val));
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.heightFt
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.heightFt ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
                     {validationErrors.heightFt && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.heightFt}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.heightFt}</p>
                     )}
                   </div>
                   <div>
@@ -2039,16 +2063,12 @@ export default function WellnessCalculator() {
                         setValidationError('heightIn', validateHeightIn(val));
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.heightIn
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.heightIn ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
                     {validationErrors.heightIn && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.heightIn}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.heightIn}</p>
                     )}
                   </div>
                   <div>
@@ -2068,16 +2088,12 @@ export default function WellnessCalculator() {
                         setValidationError('weightLb', validateWeightLb(val));
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.weightLb
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.weightLb ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
                     {validationErrors.weightLb && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.weightLb}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.weightLb}</p>
                     )}
                   </div>
                 </>
@@ -2100,16 +2116,12 @@ export default function WellnessCalculator() {
                         setValidationError('heightCm', validateHeightCm(val));
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.heightCm
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.heightCm ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
                     {validationErrors.heightCm && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.heightCm}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.heightCm}</p>
                     )}
                   </div>
                   <div>
@@ -2129,16 +2141,12 @@ export default function WellnessCalculator() {
                         setValidationError('weightKg', validateWeightKg(val));
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.weightKg
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.weightKg ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
                     {validationErrors.weightKg && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.weightKg}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.weightKg}</p>
                     )}
                   </div>
                 </>
@@ -2190,9 +2198,7 @@ export default function WellnessCalculator() {
               <h3 className="text-base font-medium mb-2">Energy</h3>
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <button
-                  onClick={() =>
-                    setSelectedEnergy(selectedEnergy === 'bmr' ? null : 'bmr')
-                  }
+                  onClick={() => setSelectedEnergy(selectedEnergy === 'bmr' ? null : 'bmr')}
                   className={`rounded-lg border p-2 transition-all ${
                     selectedEnergy === 'bmr'
                       ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
@@ -2202,9 +2208,7 @@ export default function WellnessCalculator() {
                   <Stat label="BMR" value={`${round(bmr, 0)} kcal`} />
                 </button>
                 <button
-                  onClick={() =>
-                    setSelectedEnergy(selectedEnergy === 'tdee' ? null : 'tdee')
-                  }
+                  onClick={() => setSelectedEnergy(selectedEnergy === 'tdee' ? null : 'tdee')}
                   className={`rounded-lg border p-2 transition-all ${
                     selectedEnergy === 'tdee'
                       ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
@@ -2214,11 +2218,7 @@ export default function WellnessCalculator() {
                   <Stat label="TDEE" value={`${round(tdee, 0)} kcal`} />
                 </button>
                 <button
-                  onClick={() =>
-                    setSelectedEnergy(
-                      selectedEnergy === 'target' ? null : 'target'
-                    )
-                  }
+                  onClick={() => setSelectedEnergy(selectedEnergy === 'target' ? null : 'target')}
                   className={`rounded-lg border p-2 transition-all ${
                     selectedEnergy === 'target'
                       ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
@@ -2239,10 +2239,7 @@ export default function WellnessCalculator() {
 
           {/* ===== Food Search ===== */}
           <div className="md:col-span-7 md:col-start-6 flex flex-col w-full min-w-0">
-            <section
-              id="food-search"
-              className="rounded-2xl border bg-white p-4 shadow-sm w-full min-w-0"
-            >
+            <section id="food-search" className="rounded-2xl border bg-white p-4 shadow-sm w-full min-w-0">
               <h2 className="text-lg font-medium mb-2">Food Search</h2>
               <p className="mb-3 text-xs text-slate-500">
                 Get a free USDA key:{' '}
@@ -2275,15 +2272,11 @@ export default function WellnessCalculator() {
                       }
                     }}
                     className={`w-full rounded-xl border ${
-                      validationErrors.usdaKey
-                        ? 'border-rose-500'
-                        : 'border-slate-400'
+                      validationErrors.usdaKey ? 'border-rose-500' : 'border-slate-400'
                     } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                   />
                   {validationErrors.usdaKey && (
-                    <p className="mt-1 text-xs text-rose-600">
-                      {validationErrors.usdaKey}
-                    </p>
+                    <p className="mt-1 text-xs text-rose-600">{validationErrors.usdaKey}</p>
                   )}
                 </div>
                 <div className="sm:col-span-2">
@@ -2312,13 +2305,9 @@ export default function WellnessCalculator() {
                 >
                   {isSearching ? (
                     <span className="loading-dots">
-                      Searching<span className="dot1">.</span>
-                      <span className="dot2">.</span>
-                      <span className="dot3">.</span>
+                      Searching<span className="dot1">.</span><span className="dot2">.</span><span className="dot3">.</span>
                     </span>
-                  ) : (
-                    'Search'
-                  )}
+                  ) : 'Search'}
                 </button>
                 <button
                   onClick={() => searchFoodsByWF()}
@@ -2327,13 +2316,20 @@ export default function WellnessCalculator() {
                 >
                   {isLoadingWF ? (
                     <span className="loading-dots">
-                      Loading<span className="dot1">.</span>
-                      <span className="dot2">.</span>
-                      <span className="dot3">.</span>
+                      Loading<span className="dot1">.</span><span className="dot2">.</span><span className="dot3">.</span>
                     </span>
-                  ) : (
-                    'WF'
-                  )}
+                  ) : 'WF'}
+                </button>
+                <button
+                  onClick={() => searchFoodsByEF()}
+                  disabled={isLoadingEF}
+                  className="rounded-xl bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50 hover:bg-slate-800 focus:outline-none focus:ring-0"
+                >
+                  {isLoadingEF ? (
+                    <span className="loading-dots">
+                      Loading<span className="dot1">.</span><span className="dot2">.</span><span className="dot3">.</span>
+                    </span>
+                  ) : 'EF'}
                 </button>
                 <button
                   onClick={useDemoFoods}
@@ -2386,9 +2382,7 @@ export default function WellnessCalculator() {
               {showCustomFoods && (
                 <div className="mt-4" id="custom-foods-section">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-slate-700">
-                      Custom Foods
-                    </h3>
+                    <h3 className="text-sm font-medium text-slate-700">Custom Foods</h3>
                     <button
                       onClick={() => setShowCustomFoodModal(true)}
                       className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800 focus:outline-none focus:ring-0"
@@ -2398,177 +2392,127 @@ export default function WellnessCalculator() {
                   </div>
                   <div className="space-y-2 overflow-hidden">
                     {customFoods.length === 0 ? (
-                      <p className="text-sm text-slate-500">
-                        No custom foods yet.
-                      </p>
+                      <p className="text-sm text-slate-500">No custom foods yet.</p>
                     ) : (
                       paginatedCustomFoods.map((cf) => {
-                        const caloriesFromProtein = cf.protein * 4;
-                        const remainingCalories = Math.max(
-                          0,
-                          cf.calories - caloriesFromProtein
-                        );
-                        const derivedCarbs = remainingCalories / 4;
+                      const caloriesFromProtein = cf.protein * 4;
+                      const remainingCalories = Math.max(0, cf.calories - caloriesFromProtein);
+                      const derivedCarbs = remainingCalories / 4;
 
-                        const basePerG = {
-                          energy: cf.calories / cf.amount,
-                          protein: cf.protein / cf.amount,
-                          fat: 0,
-                          carbs: derivedCarbs / cf.amount,
-                          micros: { fiber: cf.fiber / cf.amount } as Record<
-                            string,
-                            number
-                          >,
-                        };
-                        const item = {
-                          id: `custom-${cf.id}`,
-                          name: cf.name,
-                          brand: cf.brand || 'Custom',
-                          serving: cf.amount,
-                          energy: cf.calories,
-                          protein: cf.protein,
-                          fat: 0,
-                          carbs: derivedCarbs,
-                          micros: { fiber: cf.fiber },
-                          _basePerG: basePerG,
-                          customFoodId: cf.id,
-                        };
-                        const VFF = ff(cf.calories, cf.fiber);
-                        const VPF = pf(cf.calories, cf.protein);
-                        const VWF = wf(VFF, VPF);
-                        const VEF = ef(cf.calories, cf.amount);
+                      const basePerG = {
+                        energy: cf.calories / cf.amount,
+                        protein: cf.protein / cf.amount,
+                        fat: 0,
+                        carbs: derivedCarbs / cf.amount,
+                        micros: { fiber: cf.fiber / cf.amount } as Record<string, number>,
+                      };
+                      const item = {
+                        id: `custom-${cf.id}`,
+                        name: cf.name,
+                        brand: cf.brand || 'Custom',
+                        serving: cf.amount,
+                        energy: cf.calories,
+                        protein: cf.protein,
+                        fat: 0,
+                        carbs: derivedCarbs,
+                        micros: { fiber: cf.fiber },
+                        _basePerG: basePerG,
+                        customFoodId: cf.id,
+                      };
+                      const VFF = ff(cf.calories, cf.fiber);
+                      const VPF = pf(cf.calories, cf.protein);
+                      const VWF = wf(VFF, VPF);
+                      const VEF = ef(cf.calories, cf.amount);
 
-                        return (
-                          <div
-                            key={cf.id}
-                            className="flex items-center gap-3 rounded-xl border p-3"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
-                                {cf.name}
-                              </div>
-                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
-                                {cf.brand || 'Custom'}
-                              </div>
-                              <div className="mt-1 text-xs text-slate-600">
-                                {cf.amount} g → {round(cf.calories, 0)} kcal • P{' '}
-                                {round(cf.protein, 1)} • Fiber{' '}
-                                {round(cf.fiber, 1)}
-                              </div>
-                              <div className="mt-1 flex items-center gap-1">
-                                <BadgeHalo
-                                  label="FF"
-                                  value={VFF}
-                                  threshold={50}
-                                  compact
-                                />
-                                <BadgeHalo
-                                  label="PF"
-                                  value={VPF}
-                                  threshold={30}
-                                  compact
-                                />
-                                <BadgeHalo
-                                  label="WF"
-                                  value={VWF}
-                                  threshold={80}
-                                  compact
-                                />
-                                <BadgeHalo
-                                  label="EF"
-                                  value={VEF}
-                                  threshold={1}
-                                  compact
-                                />
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      const normalizedName =
-                                        cf.name.toLowerCase();
-                                      const customFoodId = cf.id;
-                                      const isFavorite =
-                                        favoriteCustomFoodIds.has(customFoodId);
-
-                                      if (isFavorite) {
-                                        await supabase
-                                          .from('favorites')
-                                          .delete()
-                                          .eq('user_id', DEFAULT_USER_ID)
-                                          .eq('custom_food_id', customFoodId);
-                                        setFavorites((prev) => {
-                                          const next = new Set(prev);
-                                          next.delete(normalizedName);
-                                          return next;
-                                        });
-                                        setFavoriteCustomFoodIds((prev) => {
-                                          const next = new Set(prev);
-                                          next.delete(customFoodId);
-                                          return next;
-                                        });
-                                      } else {
-                                        await supabase
-                                          .from('favorites')
-                                          .insert({
-                                            user_id: DEFAULT_USER_ID,
-                                            food_name: normalizedName,
-                                            custom_food_id: customFoodId,
-                                          });
-                                        setFavorites(
-                                          (prev) =>
-                                            new Set([...prev, normalizedName])
-                                        );
-                                        setFavoriteCustomFoodIds(
-                                          (prev) =>
-                                            new Set([...prev, customFoodId])
-                                        );
-                                      }
-                                    } catch (error) {
-                                      console.error(
-                                        'Error toggling favorite:',
-                                        error
-                                      );
-                                    }
-                                  }}
-                                  className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
-                                  title={
-                                    favoriteCustomFoodIds.has(cf.id)
-                                      ? 'Remove from favorites'
-                                      : 'Add to favorites'
-                                  }
-                                >
-                                  <span
-                                    className={
-                                      favoriteCustomFoodIds.has(cf.id)
-                                        ? 'text-yellow-500'
-                                        : 'text-gray-300'
-                                    }
-                                  >
-                                    ★
-                                  </span>
-                                </button>
-                              </div>
+                      return (
+                        <div
+                          key={cf.id}
+                          className="flex items-center gap-3 rounded-xl border p-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
+                              {cf.name}
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
+                              {cf.brand || 'Custom'}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-600">
+                              {cf.amount} g → {round(cf.calories, 0)} kcal • P{' '}
+                              {round(cf.protein, 1)} • Fiber {round(cf.fiber, 1)}
+                            </div>
+                            <div className="mt-1 flex items-center gap-1">
+                              <BadgeHalo label="FF" value={VFF} threshold={50} compact />
+                              <BadgeHalo label="PF" value={VPF} threshold={30} compact />
+                              <BadgeHalo label="WF" value={VWF} threshold={80} compact />
+                              <BadgeHalo label="EF" value={VEF} threshold={1} compact />
                               <button
-                                onClick={() => addFood(item)}
-                                className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
-                              >
-                                Add
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setCustomFoodToRemove(cf);
-                                  setShowRemoveCustomFoodModal(true);
+                                onClick={async () => {
+                                  try {
+                                    const normalizedName = cf.name.toLowerCase();
+                                    const customFoodId = cf.id;
+                                    const isFavorite = favoriteCustomFoodIds.has(customFoodId);
+
+                                    if (isFavorite) {
+                                      await supabase
+                                        .from('favorites')
+                                        .delete()
+                                        .eq('user_id', DEFAULT_USER_ID)
+                                        .eq('custom_food_id', customFoodId);
+                                      setFavorites((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(normalizedName);
+                                        return next;
+                                      });
+                                      setFavoriteCustomFoodIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(customFoodId);
+                                        return next;
+                                      });
+                                    } else {
+                                      await supabase
+                                        .from('favorites')
+                                        .insert({
+                                          user_id: DEFAULT_USER_ID,
+                                          food_name: normalizedName,
+                                          custom_food_id: customFoodId,
+                                        });
+                                      setFavorites((prev) => new Set([...prev, normalizedName]));
+                                      setFavoriteCustomFoodIds((prev) => new Set([...prev, customFoodId]));
+                                    }
+                                  } catch (error) {
+                                    console.error('Error toggling favorite:', error);
+                                  }
                                 }}
-                                className="text-xs text-slate-500 transition-colors hover:text-rose-600 cursor-pointer bg-transparent border-0 p-0"
+                                className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
+                                title={favoriteCustomFoodIds.has(cf.id) ? 'Remove from favorites' : 'Add to favorites'}
                               >
-                                Remove
+                                <span className={favoriteCustomFoodIds.has(cf.id) ? 'text-yellow-500' : 'text-gray-300'}>
+                                  ★
+                                </span>
                               </button>
                             </div>
                           </div>
-                        );
-                      })
-                    )}
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => addFood(item)}
+                              className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
+                            >
+                              Add
+                            </button>
+                            <button
+                              onClick={() => {
+                                setCustomFoodToRemove(cf);
+                                setShowRemoveCustomFoodModal(true);
+                              }}
+                              className="text-xs text-slate-500 transition-colors hover:text-rose-600 cursor-pointer bg-transparent border-0 p-0"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                   </div>
                   {customFoodsTotalPages > 1 && (
                     <div className="mt-3 flex justify-end items-center gap-2">
@@ -2579,13 +2523,9 @@ export default function WellnessCalculator() {
                           setCustomFoodsPage(customFoodsPage - 1);
                           requestAnimationFrame(() => {
                             requestAnimationFrame(() => {
-                              const foodSearchSection =
-                                document.getElementById('food-search');
+                              const foodSearchSection = document.getElementById('food-search');
                               if (foodSearchSection) {
-                                foodSearchSection.scrollIntoView({
-                                  behavior: 'smooth',
-                                  block: 'start',
-                                });
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                               }
                             });
                           });
@@ -2605,13 +2545,9 @@ export default function WellnessCalculator() {
                           setCustomFoodsPage(customFoodsPage + 1);
                           requestAnimationFrame(() => {
                             requestAnimationFrame(() => {
-                              const foodSearchSection =
-                                document.getElementById('food-search');
+                              const foodSearchSection = document.getElementById('food-search');
                               if (foodSearchSection) {
-                                foodSearchSection.scrollIntoView({
-                                  behavior: 'smooth',
-                                  block: 'start',
-                                });
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                               }
                             });
                           });
@@ -2628,291 +2564,192 @@ export default function WellnessCalculator() {
 
               {/* Favorites Section */}
               {showFavoritesOnly && (
-                <div
-                  className="mt-4"
-                  id="favorites-section"
-                  key={`favorites-${cacheVersion}`}
-                >
-                  <h3 className="text-sm font-medium text-slate-700 mb-2">
-                    Favorites
-                  </h3>
+                <div className="mt-4" id="favorites-section" key={`favorites-${cacheVersion}`}>
+                  <h3 className="text-sm font-medium text-slate-700 mb-2">Favorites</h3>
                   <div className="space-y-2 overflow-hidden">
                     {(() => {
-                      console.log('Favorites check:', {
-                        fdcSize: favoriteFdcIds.size,
-                        customSize: favoriteCustomFoodIds.size,
-                      });
-                      return (
-                        favoriteFdcIds.size === 0 &&
-                        favoriteCustomFoodIds.size === 0
-                      );
+                      console.log('Favorites check:', { fdcSize: favoriteFdcIds.size, customSize: favoriteCustomFoodIds.size });
+                      return (favoriteFdcIds.size === 0 && favoriteCustomFoodIds.size === 0);
                     })() ? (
-                      <p className="text-sm text-slate-500">
-                        No favorites yet.
-                      </p>
+                      <p className="text-sm text-slate-500">No favorites yet.</p>
                     ) : (
-                      <>
-                        {paginatedFavorites.map((favorite) => {
-                          if (favorite.type === 'custom') {
-                            const customFoodId = favorite.id;
-                            const customFood = customFoods.find(
-                              (cf) => cf.id === customFoodId
-                            );
+                    <>
+                      {paginatedFavorites.map((favorite) => {
+                      if (favorite.type === 'custom') {
+                      const customFoodId = favorite.id;
+                      const customFood = customFoods.find(cf => cf.id === customFoodId);
 
-                            if (customFood) {
-                              const caloriesFromProtein =
-                                customFood.protein * 4;
-                              const remainingCalories = Math.max(
-                                0,
-                                customFood.calories - caloriesFromProtein
-                              );
-                              const derivedCarbs = remainingCalories / 4;
-                              const basePerG = {
-                                energy: customFood.calories / customFood.amount,
-                                protein: customFood.protein / customFood.amount,
-                                fat: 0,
-                                carbs: derivedCarbs / customFood.amount,
-                                micros: {
-                                  fiber: customFood.fiber / customFood.amount,
-                                } as Record<string, number>,
-                              };
-                              const item = {
-                                id: `custom-${customFood.id}`,
-                                name: customFood.name,
-                                brand: customFood.brand || 'Custom',
-                                serving: customFood.amount,
-                                energy: customFood.calories,
-                                protein: customFood.protein,
-                                fat: 0,
-                                carbs: derivedCarbs,
-                                micros: { fiber: customFood.fiber },
-                                _basePerG: basePerG,
-                                customFoodId: customFood.id,
-                              };
-                              const VFF = ff(
-                                customFood.calories,
-                                customFood.fiber
-                              );
-                              const VPF = pf(
-                                customFood.calories,
-                                customFood.protein
-                              );
-                              const VWF = wf(VFF, VPF);
-                              const VEF = ef(
-                                customFood.calories,
-                                customFood.amount
-                              );
+                      if (customFood) {
+                        const caloriesFromProtein = customFood.protein * 4;
+                        const remainingCalories = Math.max(0, customFood.calories - caloriesFromProtein);
+                        const derivedCarbs = remainingCalories / 4;
+                        const basePerG = {
+                          energy: customFood.calories / customFood.amount,
+                          protein: customFood.protein / customFood.amount,
+                          fat: 0,
+                          carbs: derivedCarbs / customFood.amount,
+                          micros: { fiber: customFood.fiber / customFood.amount } as Record<string, number>,
+                        };
+                        const item = {
+                          id: `custom-${customFood.id}`,
+                          name: customFood.name,
+                          brand: customFood.brand || 'Custom',
+                          serving: customFood.amount,
+                          energy: customFood.calories,
+                          protein: customFood.protein,
+                          fat: 0,
+                          carbs: derivedCarbs,
+                          micros: { fiber: customFood.fiber },
+                          _basePerG: basePerG,
+                          customFoodId: customFood.id,
+                        };
+                        const VFF = ff(customFood.calories, customFood.fiber);
+                        const VPF = pf(customFood.calories, customFood.protein);
+                        const VWF = wf(VFF, VPF);
+                        const VEF = ef(customFood.calories, customFood.amount);
 
-                              return (
-                                <div
-                                  key={`fav-custom-${customFood.id}`}
-                                  className="flex items-center gap-3 rounded-xl border p-3"
-                                >
-                                  <div className="min-w-0 flex-1">
-                                    <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
-                                      {customFood.name}
-                                    </div>
-                                    <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
-                                      {customFood.brand || 'Custom'}
-                                    </div>
-                                    <div className="mt-1 text-xs text-slate-600">
-                                      {customFood.amount} g →{' '}
-                                      {round(customFood.calories, 0)} kcal • P{' '}
-                                      {round(customFood.protein, 1)} • Fiber{' '}
-                                      {round(customFood.fiber, 1)}
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-1">
-                                      <BadgeHalo
-                                        label="FF"
-                                        value={VFF}
-                                        threshold={50}
-                                        compact
-                                      />
-                                      <BadgeHalo
-                                        label="PF"
-                                        value={VPF}
-                                        threshold={30}
-                                        compact
-                                      />
-                                      <BadgeHalo
-                                        label="WF"
-                                        value={VWF}
-                                        threshold={80}
-                                        compact
-                                      />
-                                      <BadgeHalo
-                                        label="EF"
-                                        value={VEF}
-                                        threshold={1}
-                                        compact
-                                      />
-                                      <button
-                                        onClick={async () => {
-                                          try {
-                                            await supabase
-                                              .from('favorites')
-                                              .delete()
-                                              .eq('user_id', DEFAULT_USER_ID)
-                                              .eq(
-                                                'custom_food_id',
-                                                customFoodId
-                                              );
-                                            setFavorites((prev) => {
-                                              const next = new Set(prev);
-                                              next.delete(
-                                                customFood.name.toLowerCase()
-                                              );
-                                              return next;
-                                            });
-                                            setFavoriteCustomFoodIds((prev) => {
-                                              const next = new Set(prev);
-                                              next.delete(customFoodId);
-                                              return next;
-                                            });
-                                          } catch (error) {
-                                            console.error(
-                                              'Error toggling favorite:',
-                                              error
-                                            );
-                                          }
-                                        }}
-                                        className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0 text-yellow-500"
-                                        title="Remove from favorites"
-                                      >
-                                        ★
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => addFood(item)}
-                                    className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
-                                  >
-                                    Add
-                                  </button>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }
-                          if (favorite.type === 'fdc') {
-                            const fdcId = favorite.id;
-                            const favoriteFoodFromCache =
-                              favoriteFoodCache.get(fdcId);
-                            const favoriteFood =
-                              favoriteFoodFromCache ||
-                              results.find(
-                                (r) => r?.fdcId === fdcId || r?.FdcId === fdcId
-                              );
-
-                            if (!favoriteFood) return null;
-
-                            const n = safeParse(favoriteFood, 100);
-                            const fiber = safeNum(n.micros?.fiber);
-                            const VFF = ff(n.energy, fiber);
-                            const VPF = pf(n.energy, n.protein);
-                            const VWF = wf(VFF, VPF);
-                            const VEF = ef(n.energy, 100);
-
-                            return (
-                              <div
-                                key={`fav-fdc-${fdcId}`}
-                                className="flex items-center gap-3 rounded-xl border p-3"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
-                                    {(
-                                      favoriteFood?.description ||
-                                      favoriteFood?.lowercaseDescription ||
-                                      ''
-                                    ).toLowerCase()}
-                                  </div>
-                                  <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
-                                    {tidyText(
-                                      favoriteFood?.brandOwner ||
-                                        favoriteFood?.brandName ||
-                                        favoriteFood?.dataType ||
-                                        ''
-                                    )}
-                                  </div>
-                                  <div className="mt-1 text-xs text-slate-600">
-                                    100 g → {round(n.energy, 0)} kcal • P{' '}
-                                    {round(n.protein, 1)} • Fiber{' '}
-                                    {round(fiber, 1)}
-                                  </div>
-                                  <div className="mt-1 flex items-center gap-1">
-                                    <BadgeHalo
-                                      label="FF"
-                                      value={VFF}
-                                      threshold={50}
-                                      compact
-                                    />
-                                    <BadgeHalo
-                                      label="PF"
-                                      value={VPF}
-                                      threshold={30}
-                                      compact
-                                    />
-                                    <BadgeHalo
-                                      label="WF"
-                                      value={VWF}
-                                      threshold={80}
-                                      compact
-                                    />
-                                    <BadgeHalo
-                                      label="EF"
-                                      value={VEF}
-                                      threshold={1}
-                                      compact
-                                    />
-                                    <button
-                                      onClick={async () => {
-                                        try {
-                                          await supabase
-                                            .from('favorites')
-                                            .delete()
-                                            .eq('user_id', DEFAULT_USER_ID)
-                                            .eq('fdc_id', fdcId);
-                                          const normalizedName = (
-                                            favoriteFood?.description ||
-                                            favoriteFood?.lowercaseDescription ||
-                                            ''
-                                          ).toLowerCase();
-                                          setFavorites((prev) => {
-                                            const next = new Set(prev);
-                                            next.delete(normalizedName);
-                                            return next;
-                                          });
-                                          setFavoriteFdcIds((prev) => {
-                                            const next = new Set(prev);
-                                            next.delete(fdcId);
-                                            return next;
-                                          });
-                                        } catch (error) {
-                                          console.error(
-                                            'Error toggling favorite:',
-                                            error
-                                          );
-                                        }
-                                      }}
-                                      className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0 text-yellow-500"
-                                      title="Remove from favorites"
-                                    >
-                                      ★
-                                    </button>
-                                  </div>
-                                </div>
+                        return (
+                          <div
+                            key={`fav-custom-${customFood.id}`}
+                            className="flex items-center gap-3 rounded-xl border p-3"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
+                                {customFood.name}
+                              </div>
+                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
+                                {customFood.brand || 'Custom'}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-600">
+                                {customFood.amount} g → {round(customFood.calories, 0)} kcal • P{' '}
+                                {round(customFood.protein, 1)} • Fiber {round(customFood.fiber, 1)}
+                              </div>
+                              <div className="mt-1 flex items-center gap-1">
+                                <BadgeHalo label="FF" value={VFF} threshold={50} compact />
+                                <BadgeHalo label="PF" value={VPF} threshold={30} compact />
+                                <BadgeHalo label="WF" value={VWF} threshold={80} compact />
+                                <BadgeHalo label="EF" value={VEF} threshold={1} compact />
                                 <button
-                                  onClick={() => addFood(favoriteFood)}
-                                  className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
+                                  onClick={async () => {
+                                    try {
+                                      await supabase
+                                        .from('favorites')
+                                        .delete()
+                                        .eq('user_id', DEFAULT_USER_ID)
+                                        .eq('custom_food_id', customFoodId);
+                                      setFavorites((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(customFood.name.toLowerCase());
+                                        return next;
+                                      });
+                                      setFavoriteCustomFoodIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(customFoodId);
+                                        return next;
+                                      });
+                                    } catch (error) {
+                                      console.error('Error toggling favorite:', error);
+                                    }
+                                  }}
+                                  className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0 text-yellow-500"
+                                  title="Remove from favorites"
                                 >
-                                  Add
+                                  ★
                                 </button>
                               </div>
-                            );
-                          }
-                          return null;
-                        })}
-                      </>
+                            </div>
+                            <button
+                              onClick={() => addFood(item)}
+                              className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }
+                    if (favorite.type === 'fdc') {
+                      const fdcId = favorite.id;
+                      const favoriteFoodFromCache = favoriteFoodCache.get(fdcId);
+                      const favoriteFood = favoriteFoodFromCache || results.find(
+                        r => r?.fdcId === fdcId || r?.FdcId === fdcId
+                      );
+
+                      if (!favoriteFood) return null;
+
+                      const n = safeParse(favoriteFood, 100);
+                        const fiber = safeNum(n.micros?.fiber);
+                        const VFF = ff(n.energy, fiber);
+                        const VPF = pf(n.energy, n.protein);
+                        const VWF = wf(VFF, VPF);
+                        const VEF = ef(n.energy, 100);
+
+                        return (
+                          <div
+                            key={`fav-fdc-${fdcId}`}
+                            className="flex items-center gap-3 rounded-xl border p-3"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium capitalize">
+                                {(favoriteFood?.description || favoriteFood?.lowercaseDescription || '').toLowerCase()}
+                              </div>
+                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
+                                {tidyText(
+                                  favoriteFood?.brandOwner || favoriteFood?.brandName || favoriteFood?.dataType || ''
+                                )}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-600">
+                                100 g → {round(n.energy, 0)} kcal • P{' '}
+                                {round(n.protein, 1)} • Fiber {round(fiber, 1)}
+                              </div>
+                              <div className="mt-1 flex items-center gap-1">
+                                <BadgeHalo label="FF" value={VFF} threshold={50} compact />
+                                <BadgeHalo label="PF" value={VPF} threshold={30} compact />
+                                <BadgeHalo label="WF" value={VWF} threshold={80} compact />
+                                <BadgeHalo label="EF" value={VEF} threshold={1} compact />
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await supabase
+                                        .from('favorites')
+                                        .delete()
+                                        .eq('user_id', DEFAULT_USER_ID)
+                                        .eq('fdc_id', fdcId);
+                                      const normalizedName = (favoriteFood?.description || favoriteFood?.lowercaseDescription || '').toLowerCase();
+                                      setFavorites((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(normalizedName);
+                                        return next;
+                                      });
+                                      setFavoriteFdcIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(fdcId);
+                                        return next;
+                                      });
+                                    } catch (error) {
+                                      console.error('Error toggling favorite:', error);
+                                    }
+                                  }}
+                                  className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0 text-yellow-500"
+                                  title="Remove from favorites"
+                                >
+                                  ★
+                                </button>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => addFood(favoriteFood)}
+                              className="flex-shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-sm text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-0"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        );
+                    }
+                    return null;
+                    })}
+                    </>
                     )}
                   </div>
                   {favoritesTotalPages > 1 && (
@@ -2924,13 +2761,9 @@ export default function WellnessCalculator() {
                           setFavoritesPage(favoritesPage - 1);
                           requestAnimationFrame(() => {
                             requestAnimationFrame(() => {
-                              const foodSearchSection =
-                                document.getElementById('food-search');
+                              const foodSearchSection = document.getElementById('food-search');
                               if (foodSearchSection) {
-                                foodSearchSection.scrollIntoView({
-                                  behavior: 'smooth',
-                                  block: 'start',
-                                });
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                               }
                             });
                           });
@@ -2950,13 +2783,9 @@ export default function WellnessCalculator() {
                           setFavoritesPage(favoritesPage + 1);
                           requestAnimationFrame(() => {
                             requestAnimationFrame(() => {
-                              const foodSearchSection =
-                                document.getElementById('food-search');
+                              const foodSearchSection = document.getElementById('food-search');
                               if (foodSearchSection) {
-                                foodSearchSection.scrollIntoView({
-                                  behavior: 'smooth',
-                                  block: 'start',
-                                });
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                               }
                             });
                           });
@@ -2974,88 +2803,68 @@ export default function WellnessCalculator() {
               {/* Search Results Section */}
               {showResults && results.length > 0 && (
                 <div className="mt-4">
-                  <h3
-                    id="search-results-heading"
-                    className="text-sm font-medium text-slate-700 mb-2"
-                  >
-                    {showWFMode
-                      ? 'WF Results (Sorted Low to High)'
-                      : isDemoMode
-                      ? 'Demo Foods'
-                      : 'Search Results'}
-                  </h3>
-                  <div
-                    className="space-y-2 overflow-hidden"
-                    style={{ minHeight: '400px' }}
-                  >
-                    {results.map((f, idx) => {
-                      const n = safeParse(f, 100);
-                      const foodName = tidyText(
-                        f?.description || f?.lowercaseDescription || 'Food'
-                      );
-                      const normalizedName = foodName.toLowerCase();
-                      const fdcId = f?.fdcId || f?.FdcId || null;
-                      const isFavorite = fdcId
-                        ? favoriteFdcIds.has(fdcId)
-                        : false;
+                  <h3 id="search-results-heading" className="text-sm font-medium text-slate-700 mb-2">{showWFMode ? 'WF Results (Sorted Low to High)' : showEFMode ? 'EF Results (Infinite WF, Sorted by EF Low to High)' : (isDemoMode ? 'Demo Foods' : 'Search Results')}</h3>
+                  <div className="space-y-2 overflow-hidden" style={{ minHeight: '400px' }}>
+                      {results.map((f, idx) => {
+                    const n = safeParse(f, 100);
+                    const foodName = tidyText(
+                      f?.description ||
+                        f?.lowercaseDescription ||
+                        'Food'
+                    );
+                    const normalizedName = foodName.toLowerCase();
+                    const fdcId = f?.fdcId || f?.FdcId || null;
+                    const isFavorite = fdcId ? favoriteFdcIds.has(fdcId) : false;
 
-                      const fiber = safeNum(n.micros?.fiber);
-                      const VFF = ff(n.energy, fiber);
-                      const VPF = pf(n.energy, n.protein);
-                      const VWF = wf(VFF, VPF);
-                      const VEF = ef(n.energy, 100);
+                    const fiber = safeNum(n.micros?.fiber);
+                    const VFF = ff(n.energy, fiber);
+                    const VPF = pf(n.energy, n.protein);
+                    const VWF = wf(VFF, VPF);
+                    const VEF = ef(n.energy, 100);
 
-                      const toggleFavorite = async () => {
-                        try {
-                          if (!fdcId) {
-                            console.error(
-                              'Cannot favorite item without fdc_id'
-                            );
-                            return;
-                          }
-                          if (isFavorite) {
-                            await supabase
-                              .from('favorites')
-                              .delete()
-                              .eq('user_id', DEFAULT_USER_ID)
-                              .eq('fdc_id', fdcId);
-                            setFavorites((prev) => {
-                              const next = new Set(prev);
-                              next.delete(normalizedName);
-                              return next;
-                            });
-                            setFavoriteFdcIds((prev) => {
-                              const next = new Set(prev);
-                              next.delete(fdcId);
-                              return next;
-                            });
-                          } else {
-                            console.log('Saving favorite:', {
-                              normalizedName,
-                              fdcId,
-                              food: f,
-                            });
-                            await supabase.from('favorites').insert({
+                    const toggleFavorite = async () => {
+                      try {
+                        if (!fdcId) {
+                          console.error('Cannot favorite item without fdc_id');
+                          return;
+                        }
+                        if (isFavorite) {
+                          await supabase
+                            .from('favorites')
+                            .delete()
+                            .eq('user_id', DEFAULT_USER_ID)
+                            .eq('fdc_id', fdcId);
+                          setFavorites((prev) => {
+                            const next = new Set(prev);
+                            next.delete(normalizedName);
+                            return next;
+                          });
+                          setFavoriteFdcIds((prev) => {
+                            const next = new Set(prev);
+                            next.delete(fdcId);
+                            return next;
+                          });
+                        } else {
+                          console.log('Saving favorite:', { normalizedName, fdcId, food: f });
+                          await supabase
+                            .from('favorites')
+                            .insert({
                               user_id: DEFAULT_USER_ID,
                               food_name: normalizedName,
                               fdc_id: fdcId,
                             });
-                            setFavorites(
-                              (prev) => new Set([...prev, normalizedName])
-                            );
-                            setFavoriteFdcIds(
-                              (prev) => new Set([...prev, fdcId])
-                            );
-                            setFavoriteFoodCache((prev) => {
-                              const newMap = new Map(prev);
-                              newMap.set(fdcId, f);
-                              return newMap;
-                            });
-                          }
-                        } catch (error) {
-                          console.error('Error toggling favorite:', error);
+                          setFavorites((prev) => new Set([...prev, normalizedName]));
+                          setFavoriteFdcIds((prev) => new Set([...prev, fdcId]));
+                          setFavoriteFoodCache(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(fdcId, f);
+                            return newMap;
+                          });
                         }
-                      };
+                      } catch (error) {
+                        console.error('Error toggling favorite:', error);
+                      }
+                    };
 
                       return (
                         <div
@@ -3068,10 +2877,7 @@ export default function WellnessCalculator() {
                             </div>
                             <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-slate-500 capitalize">
                               {tidyText(
-                                f?.brandOwner ||
-                                  f?.brandName ||
-                                  f?.dataType ||
-                                  ''
+                                f?.brandOwner || f?.brandName || f?.dataType || ''
                               )}
                             </div>
                             <div className="mt-1 text-xs text-slate-600">
@@ -3079,46 +2885,16 @@ export default function WellnessCalculator() {
                               {round(n.protein, 1)} • Fiber {round(fiber, 1)}
                             </div>
                             <div className="mt-1 flex items-center gap-1">
-                              <BadgeHalo
-                                label="FF"
-                                value={VFF}
-                                threshold={50}
-                                compact
-                              />
-                              <BadgeHalo
-                                label="PF"
-                                value={VPF}
-                                threshold={30}
-                                compact
-                              />
-                              <BadgeHalo
-                                label="WF"
-                                value={VWF}
-                                threshold={80}
-                                compact
-                              />
-                              <BadgeHalo
-                                label="EF"
-                                value={VEF}
-                                threshold={1}
-                                compact
-                              />
+                              <BadgeHalo label="FF" value={VFF} threshold={50} compact />
+                              <BadgeHalo label="PF" value={VPF} threshold={30} compact />
+                              <BadgeHalo label="WF" value={VWF} threshold={80} compact />
+                              <BadgeHalo label="EF" value={VEF} threshold={1} compact />
                               <button
                                 onClick={toggleFavorite}
                                 className="text-lg transition-colors cursor-pointer bg-transparent border-0 p-0"
-                                title={
-                                  isFavorite
-                                    ? 'Remove from favorites'
-                                    : 'Add to favorites'
-                                }
+                                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                               >
-                                <span
-                                  className={
-                                    isFavorite
-                                      ? 'text-yellow-500'
-                                      : 'text-gray-300'
-                                  }
-                                >
+                                <span className={isFavorite ? 'text-yellow-500' : 'text-gray-300'}>
                                   ★
                                 </span>
                               </button>
@@ -3132,114 +2908,145 @@ export default function WellnessCalculator() {
                           </button>
                         </div>
                       );
-                    })}
-                  </div>
-                  {showWFMode && wfTotalPages > 1 && (
-                    <div className="mt-3 flex justify-end items-center gap-2">
-                      <button
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          const newPage = wfPage - 1;
-                          const itemsPerPageWF = 10;
-                          const startIndex = (newPage - 1) * itemsPerPageWF;
-                          const endIndex = startIndex + itemsPerPageWF;
-                          setResults(wfResults.slice(startIndex, endIndex));
-                          setWfPage(newPage);
-                          setTimeout(() => {
-                            const foodSearchSection =
-                              document.getElementById('food-search');
-                            if (foodSearchSection) {
-                              foodSearchSection.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start',
-                              });
-                            }
-                          }, 100);
-                        }}
-                        disabled={wfPage === 1 || isLoadingWF}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Previous
-                      </button>
-                      <span className="text-sm text-slate-600">
-                        Page {wfPage} of {wfTotalPages}
-                      </span>
-                      <button
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          const newPage = wfPage + 1;
-                          const itemsPerPageWF = 10;
-                          const startIndex = (newPage - 1) * itemsPerPageWF;
-                          const endIndex = startIndex + itemsPerPageWF;
-                          setResults(wfResults.slice(startIndex, endIndex));
-                          setWfPage(newPage);
-                          setTimeout(() => {
-                            const foodSearchSection =
-                              document.getElementById('food-search');
-                            if (foodSearchSection) {
-                              foodSearchSection.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start',
-                              });
-                            }
-                          }, 100);
-                        }}
-                        disabled={wfPage >= wfTotalPages || isLoadingWF}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Next
-                      </button>
+                      })}
                     </div>
-                  )}
-                  {!showWFMode && searchResultsPages > 1 && (
-                    <div className="mt-3 flex justify-end items-center gap-2">
-                      <button
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          await searchFoods(currentPage - 1);
-                          setTimeout(() => {
-                            const foodSearchSection =
-                              document.getElementById('food-search');
-                            if (foodSearchSection) {
-                              foodSearchSection.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start',
-                              });
-                            }
-                          }, 100);
-                        }}
-                        disabled={currentPage === 1 || isSearching}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Previous
-                      </button>
-                      <span className="text-sm text-slate-600">
-                        Page {currentPage} of {searchResultsPages}
-                      </span>
-                      <button
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          await searchFoods(currentPage + 1);
-                          setTimeout(() => {
-                            const foodSearchSection =
-                              document.getElementById('food-search');
-                            if (foodSearchSection) {
-                              foodSearchSection.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start',
-                              });
-                            }
-                          }, 100);
-                        }}
-                        disabled={
-                          currentPage >= searchResultsPages || isSearching
-                        }
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  )}
+                    {showWFMode && wfTotalPages > 1 && (
+                      <div className="mt-3 flex justify-end items-center gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const newPage = wfPage - 1;
+                            const itemsPerPageWF = 10;
+                            const startIndex = (newPage - 1) * itemsPerPageWF;
+                            const endIndex = startIndex + itemsPerPageWF;
+                            setResults(wfResults.slice(startIndex, endIndex));
+                            setWfPage(newPage);
+                            setTimeout(() => {
+                              const foodSearchSection = document.getElementById('food-search');
+                              if (foodSearchSection) {
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }
+                            }, 100);
+                          }}
+                          disabled={wfPage === 1 || isLoadingWF}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <span className="text-sm text-slate-600">
+                          Page {wfPage} of {wfTotalPages}
+                        </span>
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const newPage = wfPage + 1;
+                            const itemsPerPageWF = 10;
+                            const startIndex = (newPage - 1) * itemsPerPageWF;
+                            const endIndex = startIndex + itemsPerPageWF;
+                            setResults(wfResults.slice(startIndex, endIndex));
+                            setWfPage(newPage);
+                            setTimeout(() => {
+                              const foodSearchSection = document.getElementById('food-search');
+                              if (foodSearchSection) {
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }
+                            }, 100);
+                          }}
+                          disabled={wfPage >= wfTotalPages || isLoadingWF}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                    {showEFMode && efTotalPages > 1 && (
+                      <div className="mt-3 flex justify-end items-center gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const newPage = efPage - 1;
+                            const itemsPerPageEF = 10;
+                            const startIndex = (newPage - 1) * itemsPerPageEF;
+                            const endIndex = startIndex + itemsPerPageEF;
+                            setResults(efResults.slice(startIndex, endIndex));
+                            setEfPage(newPage);
+                            setTimeout(() => {
+                              const foodSearchSection = document.getElementById('food-search');
+                              if (foodSearchSection) {
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }
+                            }, 100);
+                          }}
+                          disabled={efPage === 1 || isLoadingEF}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <span className="text-sm text-slate-600">
+                          Page {efPage} of {efTotalPages}
+                        </span>
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const newPage = efPage + 1;
+                            const itemsPerPageEF = 10;
+                            const startIndex = (newPage - 1) * itemsPerPageEF;
+                            const endIndex = startIndex + itemsPerPageEF;
+                            setResults(efResults.slice(startIndex, endIndex));
+                            setEfPage(newPage);
+                            setTimeout(() => {
+                              const foodSearchSection = document.getElementById('food-search');
+                              if (foodSearchSection) {
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }
+                            }, 100);
+                          }}
+                          disabled={efPage >= efTotalPages || isLoadingEF}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                    {!showWFMode && !showEFMode && searchResultsPages > 1 && (
+                      <div className="mt-3 flex justify-end items-center gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            await searchFoods(currentPage - 1);
+                            setTimeout(() => {
+                              const foodSearchSection = document.getElementById('food-search');
+                              if (foodSearchSection) {
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }
+                            }, 100);
+                          }}
+                          disabled={currentPage === 1 || isSearching}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <span className="text-sm text-slate-600">
+                          Page {currentPage} of {searchResultsPages}
+                        </span>
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            await searchFoods(currentPage + 1);
+                            setTimeout(() => {
+                              const foodSearchSection = document.getElementById('food-search');
+                              if (foodSearchSection) {
+                                foodSearchSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }
+                            }, 100);
+                          }}
+                          disabled={currentPage >= searchResultsPages || isSearching}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-blue-600 text-sm hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
                 </div>
               )}
             </section>
@@ -3265,8 +3072,7 @@ export default function WellnessCalculator() {
                     selectedEnergy &&
                     ((selectedEnergy === 'bmr' && totals.cal > bmr) ||
                       (selectedEnergy === 'tdee' && totals.cal > tdee) ||
-                      (selectedEnergy === 'target' &&
-                        totals.cal > targetCalories))
+                      (selectedEnergy === 'target' && totals.cal > targetCalories))
                       ? 'text-red-600'
                       : ''
                   }
@@ -3275,8 +3081,7 @@ export default function WellnessCalculator() {
                       <div className="text-[11px] text-slate-400 mt-0.5">
                         {selectedEnergy === 'bmr' && `/ ${round(bmr, 0)}`}
                         {selectedEnergy === 'tdee' && `/ ${round(tdee, 0)}`}
-                        {selectedEnergy === 'target' &&
-                          `/ ${round(targetCalories, 0)}`}
+                        {selectedEnergy === 'target' && `/ ${round(targetCalories, 0)}`}
                       </div>
                     ) : undefined
                   }
@@ -3461,8 +3266,7 @@ export default function WellnessCalculator() {
             >
               <h2 className="mb-4 text-xl font-semibold">Remove Custom Food</h2>
               <p className="mb-6 text-sm text-slate-600">
-                All instances of this custom food will be removed from your Food
-                Log. Are you sure you want to do this?
+                All instances of this custom food will be removed from your Food Log. Are you sure you want to do this?
               </p>
               <div className="flex justify-end gap-2">
                 <button
@@ -3493,16 +3297,8 @@ export default function WellnessCalculator() {
                         .eq('user_id', DEFAULT_USER_ID)
                         .eq('food_name', customFoodToRemove.name.toLowerCase());
 
-                      setCustomFoods((prev) =>
-                        prev.filter((food) => food.id !== customFoodToRemove.id)
-                      );
-                      setLog((prev) =>
-                        prev.filter(
-                          (item) =>
-                            item.name.toLowerCase() !==
-                            customFoodToRemove.name.toLowerCase()
-                        )
-                      );
+                      setCustomFoods((prev) => prev.filter((food) => food.id !== customFoodToRemove.id));
+                      setLog((prev) => prev.filter((item) => item.name.toLowerCase() !== customFoodToRemove.name.toLowerCase()));
                       setFavorites((prev) => {
                         const next = new Set(prev);
                         next.delete(customFoodToRemove.name.toLowerCase());
@@ -3554,16 +3350,12 @@ export default function WellnessCalculator() {
                         }
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.customFoodName
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.customFoodName ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="e.g., Homemade Smoothie"
                     />
                     {validationErrors.customFoodName && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.customFoodName}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.customFoodName}</p>
                     )}
                   </div>
 
@@ -3604,16 +3396,12 @@ export default function WellnessCalculator() {
                         }
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.customFoodAmount
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.customFoodAmount ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="100"
                     />
                     {validationErrors.customFoodAmount && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.customFoodAmount}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.customFoodAmount}</p>
                     )}
                   </div>
 
@@ -3635,16 +3423,12 @@ export default function WellnessCalculator() {
                         }
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.customFoodCalories
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.customFoodCalories ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
                     {validationErrors.customFoodCalories && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.customFoodCalories}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.customFoodCalories}</p>
                     )}
                   </div>
 
@@ -3666,16 +3450,12 @@ export default function WellnessCalculator() {
                         }
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.customFoodFiber
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.customFoodFiber ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
                     {validationErrors.customFoodFiber && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.customFoodFiber}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.customFoodFiber}</p>
                     )}
                   </div>
 
@@ -3697,16 +3477,12 @@ export default function WellnessCalculator() {
                         }
                       }}
                       className={`w-full rounded-xl border ${
-                        validationErrors.customFoodProtein
-                          ? 'border-rose-500'
-                          : 'border-slate-400'
+                        validationErrors.customFoodProtein ? 'border-rose-500' : 'border-slate-400'
                       } focus:border-slate-500 focus:ring-0 px-3 py-2 text-sm shadow-sm`}
                       placeholder="0"
                     />
                     {validationErrors.customFoodProtein && (
-                      <p className="mt-1 text-xs text-rose-600">
-                        {validationErrors.customFoodProtein}
-                      </p>
+                      <p className="mt-1 text-xs text-rose-600">{validationErrors.customFoodProtein}</p>
                     )}
                   </div>
                 </div>
@@ -3727,30 +3503,10 @@ export default function WellnessCalculator() {
                       const VEF = ef(cal, amt);
                       return (
                         <>
-                          <BadgeHalo
-                            label="FF"
-                            value={VFF}
-                            threshold={50}
-                            compact
-                          />
-                          <BadgeHalo
-                            label="PF"
-                            value={VPF}
-                            threshold={30}
-                            compact
-                          />
-                          <BadgeHalo
-                            label="WF"
-                            value={VWF}
-                            threshold={80}
-                            compact
-                          />
-                          <BadgeHalo
-                            label="EF"
-                            value={VEF}
-                            threshold={1}
-                            compact
-                          />
+                          <BadgeHalo label="FF" value={VFF} threshold={50} compact />
+                          <BadgeHalo label="PF" value={VPF} threshold={30} compact />
+                          <BadgeHalo label="WF" value={VWF} threshold={80} compact />
+                          <BadgeHalo label="EF" value={VEF} threshold={1} compact />
                         </>
                       );
                     })()}

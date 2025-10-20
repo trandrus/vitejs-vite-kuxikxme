@@ -27,6 +27,30 @@
   }
 }
 
+@keyframes blink {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.loading-dots .dot1 {
+  animation: blink 1.4s infinite;
+  animation-delay: 0s;
+}
+
+.loading-dots .dot2 {
+  animation: blink 1.4s infinite;
+  animation-delay: 0.2s;
+}
+
+.loading-dots .dot3 {
+  animation: blink 1.4s infinite;
+  animation-delay: 0.4s;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
